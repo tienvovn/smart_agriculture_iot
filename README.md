@@ -1,18 +1,251 @@
-# React + Vite
+# 🌾 Smart Agriculture IoT Simulation
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Smart Agriculture IoT Dashboard built with **React + Vite** that simulates an intelligent farming system with real-time sensor monitoring, automatic irrigation, MQTT simulation, and weather effects.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📷 Preview
 
-## React Compiler
+> Dashboard
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+<img src="./public/dashboard.png" width="100%">
 
-Note: This will impact Vite dev & build performances.
+---
 
-## Expanding the ESLint configuration
+## 🚀 Live Demo
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+👉 https://gia-lap-iot-tien2203.vercel.app
+
+---
+
+# Features
+
+## 🌡 Real-time Monitoring
+
+- Temperature
+- Soil Humidity
+- Soil pH
+- Pump Status
+- MQTT Connection Status
+
+---
+
+## 🚜 Smart Irrigation
+
+Automatic irrigation logic
+
+```
+Humidity < 50%
+
+↓
+
+Pump ON
+
+↓
+
+Run for 30 minutes
+
+↓
+
+Pump OFF
+```
+
+Manual Mode
+
+- Manual Pump ON
+- Manual Pump OFF
+- Auto / Manual Switching
+
+---
+
+## 📊 Dashboard
+
+- Farm Overview
+- Sensor Cards
+- Realtime Charts
+- Notification System
+- Pump Status
+
+---
+
+## 📈 Statistics
+
+- Pump Count
+- Average Temperature
+- Average Humidity
+- Average Soil pH
+- Farm Comparison Charts
+
+---
+
+## 🌦 Weather Simulation
+
+Supported Weather
+
+- ☀ Sunny
+- ☁ Cloudy
+- 🌧 Rain
+- 🌙 Night
+
+Weather automatically affects
+
+- Temperature
+- Humidity
+
+---
+
+## 📡 MQTT Simulator
+
+Simulate publishing MQTT messages
+
+Example
+
+Topic
+
+```
+farm/pump
+```
+
+Payload
+
+```json
+{
+    "pump": true
+}
+```
+
+---
+
+## 📱 Responsive UI
+
+- Dashboard
+- Statistics
+- History
+- Simulation
+- Settings
+
+---
+
+# Project Structure
+
+```
+src
+│
+├── assets
+├── components
+│   ├── dashboard
+│   ├── farm
+│   ├── history
+│   ├── simulation
+│   ├── statistics
+│   ├── layout
+│   └── common
+│
+├── context
+├── data
+├── hooks
+├── pages
+├── services
+└── utils
+```
+
+---
+
+# Technology
+
+- React 19
+- Vite
+- Tailwind CSS
+- React Router
+- Recharts
+- Framer Motion
+- React Icons
+
+---
+
+# Installation
+
+Clone repository
+
+```bash
+git clone https://github.com/tienvovn/Gia_lap_IOT.git
+```
+
+Install packages
+
+```bash
+npm install
+```
+
+Run project
+
+```bash
+npm run dev
+```
+
+Build
+
+```bash
+npm run build
+```
+
+Preview
+
+```bash
+npm run preview
+```
+
+---
+
+# Screenshots
+
+## Dashboard
+
+- Real-time Monitoring
+- Pump Status
+- Sensor Charts
+
+---
+
+## Simulation
+
+- Weather Simulation
+- MQTT Simulator
+- Demo Mode
+
+---
+
+## Statistics
+
+- Pump Statistics
+- Average Sensor Values
+- Charts
+
+---
+
+# Future Development
+
+- MQTT Broker (Mosquitto)
+- ESP32 Integration
+- Firebase Realtime Database
+- AI Crop Recommendation
+- Camera Monitoring
+- Disease Detection
+- Mobile Application
+- Multi-user Authentication
+
+---
+
+# Author
+
+**Tien Vo**
+
+GitHub
+
+https://github.com/tienvovn
+
+---
+
+# License
+
+MIT License
