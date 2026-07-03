@@ -12,9 +12,9 @@ A Smart Agriculture IoT Dashboard built with **React + Vite** that simulates an 
 
 ---
 
-## 🚀 Live Demo
+## Live Demo
 
-👉 https://gia-lap-iot-tien2203.vercel.app
+https://gia-lap-iot-6ogt-nine.vercel.app/
 
 ---
 
