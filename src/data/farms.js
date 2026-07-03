@@ -1,0 +1,43 @@
+export const farms = [
+  {
+    id: 1,
+    name: "Farm A",
+    crop: "Ngô",
+    location: "Đà Lạt",
+    temperature: 28.4,
+    humidity: 46,
+    ph: 6.8,
+    pump: true,
+    online: true,
+    autoMode: true,
+    pumpTime: 1800,
+  },
+
+  {
+    id: 2,
+    name: "Farm B",
+    crop: "Cà chua",
+    location: "Long An",
+    temperature: 31.5,
+    humidity: 62,
+    ph: 5.9,
+    pump: false,
+    online: true,
+    autoMode: true,
+    pumpTime: 0,
+  },
+
+  {
+    id: 3,
+    name: "Farm C",
+    crop: "Rau xà lách",
+    location: "Đồng Nai",
+    temperature: 27.8,
+    humidity: 58,
+    ph: 6.5,
+    pump: false,
+    online: true,
+    autoMode: true,
+    pumpTime: 0,
+  },
+];
