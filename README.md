@@ -1,30 +1,79 @@
-# 🌾 Smart Agriculture IoT Simulation
 
-A Smart Agriculture IoT Dashboard built with **React + Vite** that simulates an intelligent farming system with real-time sensor monitoring, automatic irrigation, MQTT simulation, and weather effects.
+# 🌾 Smart Agriculture IoT Platform
+![React](https://img.shields.io/badge/React-19-blue)
+![Express](https://img.shields.io/badge/Express-5-green)
+![MongoDB](https://img.shields.io/badge/MongoDB-Database-success)
+![Swagger](https://img.shields.io/badge/API-Swagger-brightgreen)
+![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+
+A complete **Full Stack Smart Agriculture IoT Platform** built with **React + Vite**, **Express.js**, **MongoDB**, and **Docker**.
+
+The system simulates an intelligent farming environment capable of monitoring environmental sensors, controlling irrigation automatically, managing historical sensor data, and exposing REST APIs with Swagger documentation.
 
 ---
 
-## Live Demo
+# 🌐 Live Demo
+
+Frontend
 
 https://gia-lap-iot-6ogt-nine.vercel.app/
 
+GitHub Repository
+
+https://github.com/tienvovn/Gia_lap_IOT
+
 ---
 
-# Features
+# 📷 System Architecture
+
+```
+               Smart Farm A
+          ┌──────────────────┐
+          │ Temperature       │
+          │ Humidity          │
+          │ Soil pH           │
+          │ Water Pump        │
+          │ ESP32             │
+          └────────┬──────────┘
+                   │
+                   │ WiFi
+                   ▼
+             MQTT Broker
+                   │
+                   ▼
+           Express Backend
+                   │
+           REST API / Swagger
+                   │
+                   ▼
+              MongoDB
+                   │
+                   ▼
+          React Dashboard
+                   │
+                   ▼
+              Administrator
+```
+
+---
+
+# 🚀 Features
 
 ## 🌡 Real-time Monitoring
 
-- Temperature
+- Air Temperature
 - Soil Humidity
 - Soil pH
 - Pump Status
-- MQTT Connection Status
+- MQTT Status
+- Farm Status
 
 ---
 
 ## 🚜 Smart Irrigation
 
-Automatic irrigation logic
+Automatic irrigation
 
 ```
 Humidity < 50%
@@ -35,62 +84,61 @@ Pump ON
 
 ↓
 
-Run for 30 minutes
+Run 30 minutes
 
 ↓
 
 Pump OFF
 ```
 
-Manual Mode
+Manual Control
 
-- Manual Pump ON
-- Manual Pump OFF
-- Auto / Manual Switching
+- Manual ON/OFF
+- Auto Mode
+- Manual Mode
 
 ---
 
 ## 📊 Dashboard
 
+- Real-time Sensor Cards
 - Farm Overview
-- Sensor Cards
-- Realtime Charts
-- Notification System
+- Live Charts
+- Notifications
 - Pump Status
 
 ---
 
 ## 📈 Statistics
 
-- Pump Count
+- Pump Usage
 - Average Temperature
 - Average Humidity
 - Average Soil pH
-- Farm Comparison Charts
+- Farm Comparison
+- Charts
 
 ---
 
 ## 🌦 Weather Simulation
 
-Supported Weather
+Supported
 
 - ☀ Sunny
 - ☁ Cloudy
 - 🌧 Rain
 - 🌙 Night
 
-Weather automatically affects
+Weather automatically changes
 
 - Temperature
 - Humidity
 
 ---
 
-## 📡 MQTT Simulator
+## 📡 MQTT Simulation
 
-Simulate publishing MQTT messages
-
-Example
+Publish MQTT messages
 
 Topic
 
@@ -102,133 +150,244 @@ Payload
 
 ```json
 {
-    "pump": true
+  "pump": true
 }
 ```
 
 ---
 
-## 📱 Responsive UI
+## 📚 Backend REST API
 
-- Dashboard
-- Statistics
-- History
-- Simulation
-- Settings
+Implemented using
 
----
+- Express.js
+- MongoDB
+- Mongoose
 
-# Project Structure
+Features
 
-```
-src
-│
-├── assets
-├── components
-│   ├── dashboard
-│   ├── farm
-│   ├── history
-│   ├── simulation
-│   ├── statistics
-│   ├── layout
-│   └── common
-│
-├── context
-├── data
-├── hooks
-├── pages
-├── services
-└── utils
-```
+- CRUD APIs
+- Pagination
+- Filtering
+- Sorting
+- Searching
+- Validation
+- Centralized Error Handling
+- Analytics APIs
 
 ---
 
-# Technology
+## 📖 Swagger Documentation
+
+Interactive API Documentation
+
+```
+http://localhost:5000/api/docs
+```
+
+Includes
+
+- 45+ REST APIs
+- Request Examples
+- Response Examples
+- Validation Errors
+
+---
+
+## 🗄 MongoDB Database
+
+Collections
+
+- Users
+- Farms
+- Sensors
+- Sensor Logs
+- Pump Logs
+- Weather Logs
+- MQTT Logs
+
+---
+
+# 📂 Project Structure
+
+```
+Gia_lap_IOT
+│
+├── backend
+│   ├── src
+│   │   ├── config
+│   │   ├── controllers
+│   │   ├── docs
+│   │   ├── middlewares
+│   │   ├── models
+│   │   ├── repositories
+│   │   ├── routes
+│   │   ├── services
+│   │   ├── seeders
+│   │   └── utils
+│   │
+│   ├── package.json
+│   └── server.js
+│
+├── src
+│   ├── assets
+│   ├── components
+│   ├── context
+│   ├── pages
+│   ├── services
+│   └── utils
+│
+├── public
+├── docs
+├── README.md
+└── package.json
+```
+
+---
+
+# 🛠 Technology Stack
+
+## Frontend
 
 - React 19
 - Vite
 - Tailwind CSS
 - React Router
-- Recharts
 - Framer Motion
+- Recharts
 - React Icons
+
+## Backend
+
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- Swagger
+- Express Validator
+
+## DevOps
+
+- Docker
+- Git
+- GitHub
+- Vercel
 
 ---
 
-# Installation
+# ⚙ Installation
 
-Clone repository
+Clone
 
 ```bash
 git clone https://github.com/tienvovn/Gia_lap_IOT.git
 ```
 
-Install packages
+Frontend
 
 ```bash
 npm install
-```
-
-Run project
-
-```bash
 npm run dev
 ```
 
-Build
+Backend
 
 ```bash
-npm run build
-```
+cd backend
 
-Preview
+npm install
 
-```bash
-npm run preview
+npm run dev
 ```
 
 ---
 
-# Screenshots
+# 📡 REST API
+
+Health
+
+```
+GET /health
+```
+
+Resources
+
+```
+GET /api/users
+GET /api/farms
+GET /api/sensors
+GET /api/sensor-logs
+GET /api/pump-logs
+GET /api/weather-logs
+GET /api/mqtt-logs
+```
+
+Dashboard
+
+```
+GET /api/dashboard
+```
+
+Statistics
+
+```
+GET /api/statistics
+```
+
+Swagger
+
+```
+GET /api/docs
+```
+
+---
+
+# 📸 Screenshots
 
 ## Dashboard
 
 - Real-time Monitoring
+- Live Charts
 - Pump Status
-- Sensor Charts
-
----
-
-## Simulation
-
-- Weather Simulation
-- MQTT Simulator
-- Demo Mode
 
 ---
 
 ## Statistics
 
-- Pump Statistics
-- Average Sensor Values
-- Charts
+- Average Values
+- Farm Comparison
 
 ---
 
-# Future Development
+## Simulation
+
+- MQTT Simulator
+- Weather Simulation
+
+---
+
+## Swagger
+
+- Interactive REST API Documentation
+
+---
+
+# 🚀 Future Development
 
 - MQTT Broker (Mosquitto)
-- ESP32 Integration
-- Firebase Realtime Database
+- ESP32 Hardware Integration
+- Real Sensor Data
+- Socket.IO Realtime Dashboard
 - AI Crop Recommendation
 - Camera Monitoring
 - Disease Detection
 - Mobile Application
-- Multi-user Authentication
+- User Authentication (JWT)
+- Role-based Access Control
 
 ---
 
-# Author
+# 👨‍💻 Author
 
 **Tien Vo**
 
@@ -238,6 +397,10 @@ https://github.com/tienvovn
 
 ---
 
-# License
+# 📄 License
 
 MIT License
+
+---
+
+⭐ If you find this project useful, please consider giving it a star on GitHub.
