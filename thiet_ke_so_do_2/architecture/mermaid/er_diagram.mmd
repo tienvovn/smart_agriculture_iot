@@ -1,0 +1,15 @@
+erDiagram
+  USERS ||--o{ FARMS : owns
+  FARMS ||--o{ SENSORS : has
+  FARMS ||--o{ SENSOR_LOGS : records
+  FARMS ||--o{ PUMP_LOGS : records
+  FARMS ||--o{ WEATHER_LOGS : records
+  FARMS ||--o{ MQTT_LOGS : receives
+  SENSORS ||--o{ SENSOR_LOGS : produces
+  USERS { string email PK string role }
+  FARMS { string code PK string ownerId string status }
+  SENSORS { string farmId string deviceId string type }
+  SENSOR_LOGS { string farmId string sensorId number value datetime capturedAt }
+  PUMP_LOGS { string farmId string action datetime occurredAt }
+  WEATHER_LOGS { string farmId string condition datetime simulatedAt }
+  MQTT_LOGS { string topic string messageType datetime receivedAt }

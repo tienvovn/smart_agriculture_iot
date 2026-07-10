@@ -1,0 +1,60 @@
+@startuml
+!theme plain
+title Smart Farm Domain Model
+class User {
+  +fullName
+  +email
+  +passwordHash
+  +role
+  +isActive
+}
+class Farm {
+  +name
+  +code
+  +cropType
+  +status
+  +thresholds
+  +pump
+}
+class Sensor {
+  +name
+  +type
+  +unit
+  +deviceId
+  +mqttTopic
+  +status
+}
+class SensorLog {
+  +sensorType
+  +value
+  +unit
+  +source
+  +capturedAt
+}
+class PumpLog {
+  +action
+  +trigger
+  +mode
+  +occurredAt
+}
+class WeatherLog {
+  +condition
+  +temperatureDelta
+  +humidityDelta
+  +simulatedAt
+}
+class MqttLog {
+  +topic
+  +direction
+  +messageType
+  +payload
+  +processingStatus
+}
+User "1" --> "0..*" Farm : owns
+Farm "1" --> "0..*" Sensor
+Farm "1" --> "0..*" SensorLog
+Farm "1" --> "0..*" PumpLog
+Farm "1" --> "0..*" WeatherLog
+Farm "1" --> "0..*" MqttLog
+Sensor "1" --> "0..*" SensorLog
+@enduml

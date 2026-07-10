@@ -1,0 +1,23 @@
+@startuml
+!theme plain
+title Smart Agriculture IoT Deployment
+node "Farm A / B / C" {
+  node "ESP32" as esp32
+  component "Sensors and Pump" as devices
+}
+cloud "Internet" as internet
+node "MQTT Broker" as mqtt
+node "Application Host" {
+  component "React/Vite Dashboard" as react
+  component "Node.js / Express API" as api
+  component "Swagger UI" as swagger
+}
+database "MongoDB" as mongo
+devices --> esp32
+esp32 --> internet : WiFi
+internet --> mqtt : MQTT/TLS
+mqtt --> api : telemetry
+api --> mongo : Mongoose
+react --> api : HTTPS REST
+swagger --> api
+@enduml

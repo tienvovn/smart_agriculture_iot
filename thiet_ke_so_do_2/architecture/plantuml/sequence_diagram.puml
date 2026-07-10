@@ -1,0 +1,21 @@
+@startuml
+!theme plain
+title Intended IoT Telemetry Ingestion Flow
+participant "ESP32" as E
+participant "MQTT Broker" as M
+participant "Express Backend" as B
+database "MongoDB" as D
+participant "React Dashboard" as R
+E -> M : publish sensor reading
+M -> B : deliver MQTT message
+activate B
+B -> D : create mqtt_log and sensor_log
+B -> D : update sensor latest value
+D --> B : persisted
+B --> M : processing acknowledgement
+deactivate B
+R -> B : GET /api/dashboard
+B -> D : aggregate statistics
+D --> B : summary
+B --> R : JSON response
+@enduml

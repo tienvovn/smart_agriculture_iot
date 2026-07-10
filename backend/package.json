@@ -1,0 +1,29 @@
+{
+  "name": "smart-farm-iot-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Database architecture for the Smart Agriculture IoT Dashboard.",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/seeders/seedDatabase.js",
+    "seed:clear": "node src/seeders/seedDatabase.js --clear"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.2.0",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.11.0",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

@@ -1,0 +1,10 @@
+flowchart TD
+  S[Temperature / Humidity / Soil pH Sensors] --> E[ESP32]
+  E --> W[WiFi]
+  W --> I[Internet]
+  I --> M[MQTT Broker]
+  M --> B[Express Backend]
+  B --> D[(MongoDB)]
+  B --> A[REST API]
+  A --> R[React Dashboard]
+  R --> U[Administrator]

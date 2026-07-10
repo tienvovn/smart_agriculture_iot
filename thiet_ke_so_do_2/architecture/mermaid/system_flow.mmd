@@ -1,0 +1,15 @@
+sequenceDiagram
+  participant Sensor
+  participant ESP32
+  participant MQTT as MQTT Broker
+  participant API as Express API
+  participant DB as MongoDB
+  participant UI as React Dashboard
+  Sensor->>ESP32: Analog readings
+  ESP32->>MQTT: Publish telemetry over WiFi
+  MQTT->>API: Deliver message
+  API->>DB: Store logs and state
+  UI->>API: Request dashboard data
+  API->>DB: Query / aggregate
+  DB-->>API: Results
+  API-->>UI: JSON response
