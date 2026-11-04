@@ -5,6 +5,16 @@ import {
   FaTint,
 } from "react-icons/fa";
 
+function Card({ icon, title, value, color }) {
+  return (
+    <div className="bg-slate-800 rounded-2xl p-6 shadow-lg">
+      <div className={`${color} text-3xl mb-4`}>{icon}</div>
+      <p className="text-slate-400">{title}</p>
+      <h2 className="text-3xl font-bold text-white mt-2">{value}</h2>
+    </div>
+  );
+}
+
 function StatisticsCards() {
   const { farms } = useFarm();
 
@@ -18,24 +28,6 @@ function StatisticsCards() {
 
   const runningPump =
     farms.filter((farm) => farm.pump).length;
-
-  const Card = ({ icon, title, value, color }) => (
-    <div className="bg-slate-800 rounded-2xl p-6 shadow-lg">
-
-      <div className={`${color} text-3xl mb-4`}>
-        {icon}
-      </div>
-
-      <p className="text-slate-400">
-        {title}
-      </p>
-
-      <h2 className="text-3xl font-bold text-white mt-2">
-        {value}
-      </h2>
-
-    </div>
-  );
 
   return (
     <div className="grid md:grid-cols-3 gap-6">

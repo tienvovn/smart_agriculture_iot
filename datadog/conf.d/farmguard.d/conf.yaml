@@ -1,0 +1,7 @@
+logs:
+  - type: file
+    path: /var/log/farmguard/farmguard.jsonl
+    service: smart-farm-mvp
+    source: nodejs
+    tags:
+      - project:farmguard

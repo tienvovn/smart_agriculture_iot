@@ -4,9 +4,12 @@ import { connectDatabase, disconnectDatabase } from '../config/database.js';
 import {
   Farm,
   MqttLog,
+  Incident,
+  PumpCommand,
   PumpLog,
   Sensor,
   SensorLog,
+  Telemetry,
   User,
   WeatherLog
 } from '../models/index.js';
@@ -29,8 +32,16 @@ async function clearDatabase() {
     SensorLog.deleteMany({}),
     PumpLog.deleteMany({}),
     WeatherLog.deleteMany({}),
-    MqttLog.deleteMany({})
+    MqttLog.deleteMany({}),
+    PumpCommand.deleteMany({}),
+    Incident.deleteMany({})
   ]);
+
+  try {
+    await Telemetry.collection.drop();
+  } catch (error) {
+    if (error.code !== 26 && error.codeName !== 'NamespaceNotFound') throw error;
+  }
 }
 
 function buildCapturedAt(farmIndex, sensorIndex) {

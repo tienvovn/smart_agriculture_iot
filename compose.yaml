@@ -1,0 +1,42 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: smart-farm-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - smart-farm-mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    profiles: [observability]
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_LOGS_ENABLED: 'true'
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: 'true'
+      DD_APM_NON_LOCAL_TRAFFIC: 'true'
+      DD_HOSTNAME: farmguard-local
+    ports:
+      - "8125:8125/udp"
+      - "8126:8126/tcp"
+    volumes:
+      - ./backend/logs:/var/log/farmguard:ro
+      - ./datadog/conf.d/farmguard.d:/etc/datadog-agent/conf.d/farmguard.d:ro
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    profiles: [mqtt]
+    ports:
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+volumes:
+  smart-farm-mongodb-data:

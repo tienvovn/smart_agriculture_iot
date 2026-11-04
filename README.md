@@ -1,3 +1,24 @@
+# FarmGuard — Irrigation Outcome Assurance
+
+**Hackathon MVP:** a pump command can receive a successful controller ACK while
+the motor draws 0 A and soil moisture keeps falling. FarmGuard detects this
+silent failure from MongoDB telemetry, opens an incident, and proves the repair
+with measured current and rising moisture.
+
+- **Primary demo:** `/simulation` → inject silent pump failure → `/incidents` →
+  restore pump power → issue a new repair command → inspect MongoDB evidence.
+- **MongoDB:** time series telemetry, command lineage, incidents, and aggregation
+  for detection and recovery proof. `/statistics` slices readings by day, month,
+  or year across hot raw, warm daily, and cold monthly collections. The Leafy
+  inspired pipeline adds optional MQTT ingestion, a regular collection watched
+  by Change Streams, and rolling statistical anomaly evidence.
+- **Datadog:** structured logs, DogStatsD metrics, optional APM tracing, plus a
+  dashboard and monitor provisioning script. A Datadog trial and API keys are
+  required to activate the remote resources.
+- **Run locally:** [MVP runbook](docs/MVP_RUNBOOK.md). The published link below
+  reflects the earlier general platform and is not the current incident demo.
+
+---
 
 # 🌾 Smart Agriculture IoT Platform
 ![React](https://img.shields.io/badge/React-19-blue)

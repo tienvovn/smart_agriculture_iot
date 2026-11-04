@@ -7,7 +7,8 @@ const baseController = new BaseController(userService, 'User');
 
 function withoutPasswordHash(user) {
   const data = user.toObject ? user.toObject() : user;
-  const { passwordHash, ...safeUser } = data;
+  const safeUser = { ...data };
+  delete safeUser.passwordHash;
   return safeUser;
 }
 

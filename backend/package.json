@@ -8,22 +8,38 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "start:apm": "node --env-file=.env --import dd-trace/initialize.mjs src/server.js",
     "seed": "node src/seeders/seedDatabase.js",
-    "seed:clear": "node src/seeders/seedDatabase.js --clear"
+    "seed:clear": "node src/seeders/seedDatabase.js --clear",
+    "check": "node --check src/server.js && node --check src/services/IotMvpService.js",
+    "test:mvp": "node src/tests/smokeMvp.js",
+    "test:data": "node src/tests/telemetryDataset.test.js",
+    "test:retention": "node src/tests/telemetryRetention.test.js",
+    "test:pipeline": "node src/tests/telemetryPipeline.test.js",
+    "mqtt:publish-demo": "node src/scripts/publishMqttDemo.js",
+    "data:estimate": "node src/scripts/generateTelemetryDataset.js --mode estimate --target-gib 100",
+    "data:generate": "node src/scripts/generateTelemetryDataset.js",
+    "data:validate": "node src/scripts/validateOperationalData.js",
+    "data:maintain": "node src/scripts/maintainTelemetry.js",
+    "data:cycle": "node src/scripts/maintainTelemetry.js --mode cycle",
+    "datadog:provision": "node src/scripts/provisionDatadog.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
+    "dd-trace": "^6.21.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-validator": "^7.3.2",
     "helmet": "^8.2.0",
     "mongoose": "^8.9.5",
     "morgan": "^1.11.0",
+    "mqtt": "^5.10.4",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.9"
   }
 }

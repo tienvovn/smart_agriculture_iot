@@ -1,9 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 
-import WeatherPanel from "../components/simulation/WeatherPanel";
 import DemoControl from "../components/simulation/DemoControl";
-import MQTTSimulator from "../components/simulation/MQTTSimulator";
 
 function Simulation() {
   const navigate = useNavigate();
@@ -43,14 +41,7 @@ function Simulation() {
 
       </div>
 
-      {/* Weather */}
-      <WeatherPanel />
-
-      {/* Demo */}
       <DemoControl />
-
-      {/* MQTT */}
-      <MQTTSimulator />
 
     </div>
   );

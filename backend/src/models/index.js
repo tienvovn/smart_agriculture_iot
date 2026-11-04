@@ -5,3 +5,8 @@ export { SensorLog } from './SensorLog.js';
 export { PumpLog } from './PumpLog.js';
 export { WeatherLog } from './WeatherLog.js';
 export { MqttLog } from './MqttLog.js';
+export { Telemetry } from './Telemetry.js';
+export { TelemetryEvent } from './TelemetryEvent.js';
+export { TelemetryAnomaly } from './TelemetryAnomaly.js';
+export { PumpCommand } from './PumpCommand.js';
+export { Incident } from './Incident.js';

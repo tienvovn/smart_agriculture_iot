@@ -5,35 +5,16 @@ import {
     FaTint,
     FaCloud,
 } from "react-icons/fa";
-
-const stats = [
-    {
-        title: "Farms",
-        value: 3,
-        icon: <FaSeedling size={30} />,
-        color: "from-green-500 to-green-700",
-    },
-    {
-        title: "Sensors",
-        value: 9,
-        icon: <FaTemperatureHigh size={30} />,
-        color: "from-orange-500 to-red-600",
-    },
-    {
-        title: "Pumps",
-        value: 3,
-        icon: <FaTint size={30} />,
-        color: "from-cyan-500 to-blue-600",
-    },
-    {
-        title: "MQTT",
-        value: "ONLINE",
-        icon: <FaCloud size={30} />,
-        color: "from-violet-500 to-indigo-600",
-    },
-];
+import { useFarm } from "../../context/FarmContext";
 
 function DashboardStats() {
+    const { farms, connected, incidents } = useFarm();
+    const stats = [
+        { title: "Farms", value: farms.length, icon: <FaSeedling size={30} />, color: "from-green-500 to-green-700" },
+        { title: "Sensors", value: farms.length * 3, icon: <FaTemperatureHigh size={30} />, color: "from-orange-500 to-red-600" },
+        { title: "Incidents", value: incidents.filter((item) => item.status !== "resolved").length, icon: <FaTint size={30} />, color: "from-cyan-500 to-blue-600" },
+        { title: "Backend", value: connected ? "ONLINE" : "OFFLINE", icon: <FaCloud size={30} />, color: "from-violet-500 to-indigo-600" },
+    ];
     return (
         <div className="grid grid-cols-4 gap-6">
 

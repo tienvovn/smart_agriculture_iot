@@ -65,6 +65,13 @@ function FarmCard({ farm }) {
 
       </div>
 
+      {farm.incident && (
+        <div className="mt-4 rounded-xl border border-red-500 bg-red-500/10 p-3 text-sm text-red-300">
+          <p className="font-bold">ACTIVE INCIDENT · {farm.incident.status.toUpperCase()}</p>
+          <p className="mt-1">{farm.incident.summary}</p>
+        </div>
+      )}
+
       {/* Sensor Grid */}
 
       <div className="grid grid-cols-2 gap-4 mt-6">
@@ -166,6 +173,14 @@ function FarmCard({ farm }) {
               : "--"}
 
           </p>
+
+          {farm.pumpState && (
+            <div className="mt-3 space-y-1 text-xs text-slate-400">
+              <p>Command: <span className="text-white">{farm.pumpState.commandStatus}</span></p>
+              <p>ACK: <span className="text-white">{farm.pumpState.acknowledged ? "YES" : "NO"}</span></p>
+              <p>Current: <span className="text-white">{farm.pumpState.currentAmp} A</span></p>
+            </div>
+          )}
 
         </div>
 

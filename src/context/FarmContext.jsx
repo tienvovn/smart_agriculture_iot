@@ -1,229 +1,106 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { farms as initialData } from "../data/farms";
-import { updatePumpLogic } from "../services/pumpController";
-import { WEATHER, applyWeather } from "../services/weatherServices";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { farms as fallbackFarms } from '../data/farms';
+import { iotApi } from '../components/api/iotApi';
 
-const FarmContext = createContext();
+const FarmContext = createContext(null);
 
 export function FarmProvider({ children }) {
-  const [farms, setFarms] = useState(initialData);
-
+  const [farms, setFarms] = useState(fallbackFarms);
   const [events, setEvents] = useState([]);
+  const [incidents, setIncidents] = useState([]);
+  const [assurance, setAssurance] = useState({ protectedFarms: 0, confirmedIrrigations: 0, openIncidents: 0, assuranceRate: 100 });
+  const [product, setProduct] = useState({ name: 'FarmGuard', category: 'Irrigation Assurance' });
+  const [telemetryPipeline, setTelemetryPipeline] = useState({ mode: 'direct', mqttConnected: false, anomalies: [] });
+  const [selectedFarmId, setSelectedFarmId] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const refreshTimer = useRef(null);
 
-  const [selectedFarm, setSelectedFarm] = useState(null);
-
-  // History Sensor
-  const [history, setHistory] = useState({});
-
-  // Weather Simulation
-  const [weather, setWeather] = useState(WEATHER.SUNNY);
-
-  // Luôn cập nhật Farm đang mở Drawer
-  useEffect(() => {
-    if (!selectedFarm) return;
-
-    const farm = farms.find((f) => f.id === selectedFarm.id);
-
-    if (farm) {
-      setSelectedFarm(farm);
+  const refresh = useCallback(async () => {
+    try {
+      const snapshot = await iotApi.snapshot();
+      setFarms(snapshot.farms);
+      setEvents(snapshot.events || []);
+      setIncidents(snapshot.incidents || []);
+      setAssurance(snapshot.assurance || {});
+      setProduct(snapshot.product || {});
+      setTelemetryPipeline(snapshot.telemetryPipeline || { mode: 'direct', mqttConnected: false, anomalies: [] });
+      setConnected(true);
+      setError('');
+    } catch (requestError) {
+      setConnected(false);
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
     }
-  }, [farms]);
+  }, []);
 
-  // ==========================
-  // Sensor Simulation
-  // ==========================
   useEffect(() => {
-    const timer = setInterval(() => {
-      setFarms((prev) => {
-        const updated = prev.map((farm) => {
-          // Weather Effect
-          const weatherSensor = applyWeather(farm, weather);
+    const initialRefresh = setTimeout(refresh, 0);
+    const source = new EventSource(iotApi.streamUrl);
+    const scheduleRefresh = () => {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(refresh, 150);
+    };
+    source.addEventListener('connected', () => setConnected(true));
+    source.addEventListener('snapshot-invalidated', scheduleRefresh);
+    source.addEventListener('event', scheduleRefresh);
+    source.onerror = () => setConnected(false);
 
-          let temperature =
-            weatherSensor.temperature +
-            (Math.random() - 0.5) * 0.2;
+    return () => {
+      clearTimeout(refreshTimer.current);
+      clearTimeout(initialRefresh);
+      source.close();
+    };
+  }, [refresh]);
 
-          let humidity =
-            weatherSensor.humidity +
-            Math.floor(Math.random() * 3 - 1);
+  const selectedFarm = useMemo(
+    () => farms.find((farm) => farm.id === selectedFarmId) || null,
+    [farms, selectedFarmId]
+  );
+  const setSelectedFarm = useCallback((farm) => setSelectedFarmId(farm?.id || null), []);
 
-          let ph =
-            farm.ph +
-            (Math.random() - 0.5) * 0.1;
+  const runAction = useCallback(async (action) => {
+    setError('');
+    try {
+      await action();
+      await refresh();
+    } catch (actionError) {
+      setError(actionError.message);
+      throw actionError;
+    }
+  }, [refresh]);
 
-          temperature = Number(temperature.toFixed(1));
-          humidity = Math.max(30, Math.min(90, humidity));
-          ph = Number(ph.toFixed(1));
+  const history = useMemo(
+    () => Object.fromEntries(farms.map((farm) => [farm.id, farm.history || []])),
+    [farms]
+  );
 
-          const previousPump = farm.pump;
-
-          const updatedFarm = updatePumpLogic({
-            ...farm,
-            temperature,
-            humidity,
-            ph,
-          });
-
-          // ==========================
-          // History
-          // ==========================
-          setHistory((old) => {
-            const current = old[updatedFarm.id] || [];
-
-            return {
-              ...old,
-
-              [updatedFarm.id]: [
-                ...current.slice(-19),
-
-                {
-                  time: new Date().toLocaleTimeString(),
-
-                  temperature: updatedFarm.temperature,
-
-                  humidity: updatedFarm.humidity,
-
-                  ph: updatedFarm.ph,
-                },
-              ],
-            };
-          });
-
-          // ==========================
-          // Event Log
-          // ==========================
-
-          if (!previousPump && updatedFarm.pump) {
-            setEvents((old) => [
-              {
-                id: Date.now() + Math.random(),
-
-                farm: updatedFarm.name,
-
-                message:
-                  "Humidity below 50%. Pump automatically turned ON.",
-
-                time: new Date().toLocaleTimeString(),
-
-                type: "success",
-              },
-
-              ...old.slice(0, 29),
-            ]);
-          }
-
-          if (previousPump && !updatedFarm.pump) {
-            setEvents((old) => [
-              {
-                id: Date.now() + Math.random(),
-
-                farm: updatedFarm.name,
-
-                message:
-                  "30 minutes completed. Pump automatically turned OFF.",
-
-                time: new Date().toLocaleTimeString(),
-
-                type: "warning",
-              },
-
-              ...old.slice(0, 29),
-            ]);
-          }
-
-          return updatedFarm;
-        });
-
-        return updated;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-
-  }, [weather]);
-
-  // ==========================
-  // Auto / Manual Mode
-  // ==========================
-  const toggleMode = (id) => {
-    setFarms((prev) =>
-      prev.map((farm) =>
-        farm.id === id
-          ? {
-              ...farm,
-              autoMode: !farm.autoMode,
-            }
-          : farm
-      )
-    );
-  };
-
-  // ==========================
-  // Manual Pump
-  // ==========================
-  const togglePump = (id) => {
-    setFarms((prev) =>
-      prev.map((farm) => {
-        if (farm.id !== id) return farm;
-
-        if (farm.autoMode) return farm;
-
-        const newPump = !farm.pump;
-
-        setEvents((old) => [
-          {
-            id: Date.now() + Math.random(),
-
-            farm: farm.name,
-
-            message: newPump
-              ? "User manually turned ON pump."
-              : "User manually turned OFF pump.",
-
-            time: new Date().toLocaleTimeString(),
-
-            type: "info",
-          },
-
-          ...old.slice(0, 29),
-        ]);
-
-        return {
-          ...farm,
-          pump: newPump,
-        };
-      })
-    );
+  const unsupportedControl = () => {
+    setError('Manual control is disabled in this MVP. Use the incident workflow in Simulation Center.');
   };
 
   return (
-    <FarmContext.Provider
-      value={{
-        farms,
-        setFarms,
-
-        events,
-        setEvents,
-
-        selectedFarm,
-        setSelectedFarm,
-
-        toggleMode,
-        togglePump,
-
-        history,
-
-        // Weather
-        weather,
-        setWeather,
-        WEATHER,
-      }}
-    >
+    <FarmContext.Provider value={{
+      farms, setFarms, events, setEvents, incidents, assurance, product, telemetryPipeline, selectedFarm, setSelectedFarm, history,
+      connected, loading, error, refresh,
+      startAckTimeoutScenario: (farmCode) => runAction(() => iotApi.startAckTimeout(farmCode)),
+      startSilentFailureScenario: (farmCode) => runAction(() => iotApi.startSilentFailure(farmCode)),
+      restoreController: (farmCode) => runAction(() => iotApi.restoreController(farmCode)),
+      retryIncident: (incidentId) => runAction(() => iotApi.retryIncident(incidentId)),
+      resetScenario: (farmCode) => runAction(() => iotApi.resetScenario(farmCode)),
+      toggleMode: unsupportedControl,
+      togglePump: unsupportedControl
+    }}>
       {children}
     </FarmContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFarm() {
-  return useContext(FarmContext);
+  const context = useContext(FarmContext);
+  if (!context) throw new Error('useFarm must be used inside FarmProvider');
+  return context;
 }
