@@ -12,8 +12,13 @@ FarmGuard phát hiện lỗi tưới **“im lặng”**: bộ điều khiển b
 ![Docker](https://img.shields.io/badge/Docker-one%20command-2496ED?logo=docker&logoColor=white)
 
 <p align="center">
-  <img src="image/field-overview.jpg" width="49%" alt="ESP32-S3, cảm biến và relay lắp ngoài bồn rau thật">
-  <img src="docs/assets/screenshots/app-incident.png" width="49%" alt="Incident Center: ACK đã nhận nhưng bơm không tưới, kèm KPI MTTD/MTTR">
+  <img src="image/field-overview.jpg" width="70%" alt="ESP32-S3, cảm biến và relay lắp ngoài bồn rau thật"><br>
+  <sub>Phần cứng thật: ESP32-S3, cảm biến và relay lắp ngoài bồn rau</sub>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshots/app-incident.png" width="90%" alt="Incident Center: ACK đã nhận nhưng bơm không tưới, kèm KPI MTTD/MTTR"><br>
+  <sub>Incident Center: có ACK nhưng bơm không tưới, kèm KPI MTTD/MTTR tính bằng aggregation MongoDB</sub>
 </p>
 
 | | |
@@ -51,6 +56,7 @@ FarmGuard phát hiện lỗi tưới **“im lặng”**: bộ điều khiển b
 | Thành viên | Vai trò |
 |---|---|
 | Nguyễn Thành Kiệt | Trưởng nhóm, người liên hệ chính |
+| Võ Mai Hoàng Tiến | Thành viên |
 
 ---
 
