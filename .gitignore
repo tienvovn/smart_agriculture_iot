@@ -26,3 +26,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Firmware secrets (Wi-Fi password). Copy AppConfig.example.h -> AppConfig.h locally.
+IOT/SmartAgriculture/AppConfig.h
+
+# Local agent/tool state
+.agents/
+.aider-desk/
+skills-lock.json
+video/.claude/
+video/skills-lock.json

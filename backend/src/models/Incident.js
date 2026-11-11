@@ -11,6 +11,8 @@ const incidentSchema = new mongoose.Schema(
     severity: { type: String, enum: ['warning', 'critical'], default: 'critical' },
     status: { type: String, enum: ['open', 'mitigating', 'resolved'], default: 'open', index: true },
     summary: { type: String, required: true },
+    // When the farm actually stopped being irrigated (command published / ACK received).
+    impactStartedAt: { type: Date, default: null },
     detectedAt: { type: Date, required: true, default: Date.now },
     mitigatingAt: { type: Date, default: null },
     resolvedAt: { type: Date, default: null },
@@ -26,6 +28,7 @@ const incidentSchema = new mongoose.Schema(
 );
 
 incidentSchema.index({ farm: 1, status: 1, detectedAt: -1 });
+incidentSchema.index({ detectedAt: -1 });
 incidentSchema.index(
   { farm: 1, type: 1 },
   {

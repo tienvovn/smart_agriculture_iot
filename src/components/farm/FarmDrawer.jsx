@@ -75,10 +75,19 @@ function FarmDrawer() {
 
               <SensorCard
                 icon={<FaTint />}
-                title="Humidity"
-                value={`${selectedFarm.humidity}%`}
+                title="Soil moisture"
+                value={`${selectedFarm.humidity ?? '--'}%`}
                 color="text-cyan-400"
               />
+
+              {selectedFarm.airHumidity != null && (
+                <SensorCard
+                  icon={<FaTint />}
+                  title="Air humidity (DHT22)"
+                  value={`${selectedFarm.airHumidity}%`}
+                  color="text-sky-300"
+                />
+              )}
 
               <SensorCard
                 icon={<FaLeaf />}
@@ -118,11 +127,20 @@ function FarmDrawer() {
             />
 
             <FarmRealtimeChart
-              title="💧 Humidity History"
+              title="💧 Soil Moisture History"
               color="#00d4ff"
               data={history[selectedFarm.id] || []}
               dataKey="humidity"
             />
+
+            {selectedFarm.airHumidity != null && (
+              <FarmRealtimeChart
+                title="☁️ Air Humidity History"
+                color="#7dd3fc"
+                data={history[selectedFarm.id] || []}
+                dataKey="airHumidity"
+              />
+            )}
 
             <FarmRealtimeChart
               title="🌱 Soil pH History"

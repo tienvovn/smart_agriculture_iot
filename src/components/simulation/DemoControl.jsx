@@ -7,7 +7,7 @@ const displayBytes = (bytes) => bytes == null ? '--' : `${(bytes / (1024 * 1024)
 
 function Step({ number, title, description, active, done }) {
   return (
-    <div className={active ? 'rounded-xl border border-amber-400 bg-amber-400/10 p-4' : 'rounded-xl border border-slate-700 bg-slate-900 p-4'}>
+    <div className={active ? 'rounded-xl border-2 border-amber-400 bg-slate-900 p-4 shadow-lg shadow-amber-400/20' : 'rounded-xl border border-slate-700 bg-slate-900 p-4'}>
       <div className="flex items-center gap-3">
         <span className={done ? 'flex h-8 w-8 items-center justify-center rounded-full bg-green-600 font-bold text-white' : 'flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-bold text-white'}>{number}</span>
         <div><p className="font-bold text-white">{title}</p><p className="text-sm text-slate-400">{description}</p></div>
@@ -63,7 +63,9 @@ export default function DemoControl() {
       {farm && <div className="grid gap-4 md:grid-cols-4">
         <Metric label="Soil moisture" value={String(farm.humidity ?? '--') + '%'} />
         <Metric label="Command / ACK" value={String(farm.pumpState?.commandStatus || 'idle') + ' / ' + (farm.pumpState?.acknowledged ? 'yes' : 'no')} />
-        <Metric label="Measured pump current" value={String(farm.pumpState?.currentAmp ?? 0) + ' A'} />
+        {farm.source === 'hardware'
+          ? <Metric label="ESP32 relay (no current sensor)" value={(farm.pumpState?.physical || '--') + (farm.online ? ' · LIVE' : ' · OFFLINE')} />
+          : <Metric label="Measured pump current" value={String(farm.pumpState?.currentAmp ?? 0) + ' A'} />}
         <Metric label="Controller / power" value={(farm.pumpState?.controllerOnline ? 'ONLINE' : 'OFFLINE') + ' / ' + (farm.pumpState?.powerAvailable ? 'ON' : 'OFF')} />
       </div>}
 

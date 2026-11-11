@@ -20,6 +20,7 @@ export const iotApi = {
     request('/iot/simulation/ack-timeout', { method: 'POST', body: JSON.stringify({ farmCode }) }),
   startSilentFailure: (farmCode) =>
     request('/iot/simulation/silent-failure', { method: 'POST', body: JSON.stringify({ farmCode }) }),
+  incidentKpis: (hours = 24) => request(`/iot/incidents/kpis?hours=${hours}`),
   incidentEvidence: (incidentId) =>
     request(`/iot/incidents/${encodeURIComponent(incidentId)}/evidence`),
   restoreController: (farmCode) =>
@@ -28,5 +29,8 @@ export const iotApi = {
     request(`/iot/incidents/${encodeURIComponent(incidentId)}/retry`, { method: 'POST' }),
   resetScenario: (farmCode) =>
     request('/iot/simulation/reset', { method: 'POST', body: JSON.stringify({ farmCode }) }),
-  streamUrl: `${API_BASE}/iot/stream`
+  // action: 'ON' | 'OFF' | 'AUTO' | 'MANUAL' -> published to the ESP32 over MQTT
+  hardwareCommand: (farmCode, action) =>
+    request(`/iot/hardware/${encodeURIComponent(farmCode)}/command`, { method: 'POST', body: JSON.stringify({ action }) }),
+  streamUrl:`${API_BASE}/iot/stream`
 };

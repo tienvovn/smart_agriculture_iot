@@ -1,0 +1,15 @@
+node_modules
+dist
+backend
+video
+IOT
+docs
+datadog
+mosquitto
+Thiet_ke_so_do
+thiet_ke_so_do_2
+*.pdf
+*.rar
+.env
+.env.*
+.git

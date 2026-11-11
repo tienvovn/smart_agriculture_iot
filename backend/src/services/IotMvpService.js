@@ -7,8 +7,9 @@ import {
   Sensor,
   Telemetry
 } from '../models/index.js';
+import { hardwareFarmCodes } from '../config/hardware.js';
 import { AppError } from '../utils/AppError.js';
-import { logEvent, metric, traceOperation } from '../utils/observability.js';
+import { ddEvent, logEvent, metric, traceOperation } from '../utils/observability.js';
 import { realtimeService } from './RealtimeService.js';
 import { telemetryPipelineService } from './TelemetryPipelineService.js';
 
@@ -17,11 +18,22 @@ const ACK_TIMEOUT_MS = Number(process.env.SIMULATOR_ACK_TIMEOUT_MS || 5000);
 const EFFECT_TIMEOUT_MS = Number(process.env.SIMULATOR_EFFECT_TIMEOUT_MS || 5000);
 const TICK_MS = Number(process.env.SIMULATOR_TICK_MS || 2000);
 const HISTORY_WINDOW_MINUTES = Number(process.env.TELEMETRY_HISTORY_WINDOW_MINUTES || 15);
+const BASELINE_MANUAL_DETECTION_HOURS = Number(process.env.BASELINE_MANUAL_DETECTION_HOURS || 12);
 const HISTORY_POINTS_PER_SERIES = Number(process.env.TELEMETRY_HISTORY_POINTS_PER_SERIES || 30);
 
 function round(value, decimals = 1) {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
+}
+
+// A clamp-on current transformer is never perfectly flat: a running pump draws
+// ~1.8 A with +/-8% ripple and an idle line shows a small noise floor (< 0.05 A).
+function pumpCurrentReading(running) {
+  return running ? round(1.8 + (Math.random() - 0.5) * 0.3, 2) : round(Math.random() * 0.04, 2);
+}
+
+function secondsBetween(start, end) {
+  return start && end ? round((end.getTime() - start.getTime()) / 1000, 1) : null;
 }
 
 function displayLocation(farm) {
@@ -31,6 +43,9 @@ function displayLocation(farm) {
 class IotMvpService {
   constructor() {
     this.states = new Map();
+    // Farms fed by real ESP32 hardware (filled by HardwareBridgeService), keyed by farm id.
+    this.externalStates = new Map();
+    this.hardwareRetry = null;
     this.timer = null;
     this.ticking = false;
   }
@@ -38,7 +53,8 @@ class IotMvpService {
   async start() {
     if (this.timer || process.env.SIMULATOR_ENABLED === 'false') return;
 
-    const farms = await Farm.find({ status: 'active' });
+    const hardwareFarms = hardwareFarmCodes();
+    const farms = (await Farm.find({ status: 'active' })).filter((farm) => !hardwareFarms.has(farm.code));
     if (farms.length === 0) {
       logEvent('warn', 'simulator.no_farms', { message: 'Run npm run seed before starting the simulator.' });
       return;
@@ -112,6 +128,7 @@ class IotMvpService {
       Math.max(20, Math.min(90, state.humidity + (state.pumpPhysical ? 1.4 : -0.35) + (Math.random() - 0.5) * 0.2))
     );
 
+    state.pumpCurrent = pumpCurrentReading(state.pumpPhysical);
     const capturedAt = new Date();
     const messageId = `msg-${randomUUID()}`;
     const command = state.currentCommandId
@@ -125,7 +142,7 @@ class IotMvpService {
       this.telemetryDocument(
         farm,
         'pump_current',
-        state.pumpPhysical ? 1.8 : 0,
+        state.pumpCurrent,
         'ampere',
         messageId,
         capturedAt,
@@ -156,7 +173,7 @@ class IotMvpService {
 
     metric('smartfarm.telemetry.received', 4, 'c', { farm: farm.code, status: 'accepted' });
     metric('smartfarm.soil_moisture.percent', state.humidity, 'g', { farm: farm.code });
-    metric('smartfarm.pump.current_amp', state.pumpPhysical ? 1.8 : 0, 'g', { farm: farm.code });
+    metric('smartfarm.pump.current_amp', state.pumpCurrent, 'g', { farm: farm.code });
 
     if (command?.status === 'published') {
       if (state.pumpControllerOnline && !state.dropAck) await this.acknowledgeCommand(farm, state, command);
@@ -169,6 +186,8 @@ class IotMvpService {
     metric('smartfarm.irrigation.outcome_missing',
       state.scenario === 'pump_no_effect' && state.recoveryIncidentId ? 1 : 0,
       'g', { farm: farm.code });
+    // Emit every tick so Datadog always has a value (a one-off gauge looks like "no data").
+    metric('smartfarm.incident.open', state.recoveryIncidentId ? 1 : 0, 'g', { farm: farm.code });
     await this.maybeCreateIrrigationCommand(farm, state);
   }
 
@@ -331,9 +350,11 @@ class IotMvpService {
         command: command._id,
         type: 'pump_ack_timeout',
         status: 'open',
+        impactStartedAt: command.publishedAt,
         summary: `Pump controller at ${farm.name} did not acknowledge the irrigation command.`,
         recoveryEvidence: { moistureBefore: state.humidity }
       });
+      this.recordIncidentOpened(farm, incident);
       state.recoveryIncidentId = incident.incidentId;
       state.recoveryBaseline = state.humidity;
     }
@@ -389,9 +410,11 @@ class IotMvpService {
       command: command._id,
       type: 'pump_no_effect',
       status: 'open',
+      impactStartedAt: command.acknowledgedAt,
       summary: 'Pump at ' + farm.name + ' acknowledged the command but did not irrigate.',
       recoveryEvidence: { ackReceived: true, pumpCurrentAmp: 0, moistureBefore: moisture.lastValue }
     });
+    this.recordIncidentOpened(farm, incident);
     state.recoveryIncidentId = incident.incidentId;
     state.recoveryBaseline = moisture.lastValue;
     realtimeService.addEvent({
@@ -409,6 +432,100 @@ class IotMvpService {
       moistureBefore: moisture.firstValue,
       moistureAfter: moisture.lastValue
     });
+  }
+
+  recordIncidentOpened(farm, incident) {
+    const tags = { farm: farm.code, incident_type: incident.type };
+    const timeToDetect = secondsBetween(incident.impactStartedAt, incident.detectedAt);
+    metric('smartfarm.incident.opened', 1, 'c', tags);
+    if (timeToDetect !== null) metric('smartfarm.incident.time_to_detect_seconds', timeToDetect, 'd', tags);
+    ddEvent(
+      `FarmGuard incident opened: ${incident.type} on ${farm.code}`,
+      `${incident.summary}\nincidentId: ${incident.incidentId}\ncorrelationId: ${incident.correlationId}\ntime to detect: ${timeToDetect}s`,
+      'error',
+      { ...tags, incident_id: incident.incidentId, correlation_id: incident.correlationId }
+    );
+  }
+
+  recordIncidentResolved(farm, incident) {
+    const tags = { farm: farm.code, incident_type: incident.type };
+    const timeToResolve = secondsBetween(incident.detectedAt, incident.resolvedAt);
+    const unirrigated = secondsBetween(incident.impactStartedAt || incident.detectedAt, incident.resolvedAt);
+    metric('smartfarm.incident.resolved', 1, 'c', tags);
+    if (timeToResolve !== null) metric('smartfarm.incident.time_to_resolve_seconds', timeToResolve, 'd', tags);
+    if (unirrigated !== null) metric('smartfarm.incident.unirrigated_seconds', unirrigated, 'd', tags);
+    ddEvent(
+      `FarmGuard incident resolved: ${incident.type} on ${farm.code}`,
+      `Recovery proven from MongoDB telemetry (moisture ${incident.recoveryEvidence?.moistureBefore}% -> ${incident.recoveryEvidence?.moistureAfter}%).\nincidentId: ${incident.incidentId}\ntime to resolve: ${timeToResolve}s`,
+      'success',
+      { ...tags, incident_id: incident.incidentId, correlation_id: incident.correlationId }
+    );
+  }
+
+  // MTTD / MTTR and business impact, computed in MongoDB from the incidents collection.
+  async getIncidentKpis({ hours = 24, baselineHours = BASELINE_MANUAL_DETECTION_HOURS } = {}) {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const msBetween = (start, end) => ({
+      $cond: [
+        { $and: [{ $gt: [start, null] }, { $gt: [end, null] }] },
+        { $dateDiff: { startDate: start, endDate: end, unit: 'millisecond' } },
+        null
+      ]
+    });
+    const [result] = await Incident.aggregate([
+      { $match: { detectedAt: { $gte: since } } },
+      { $set: {
+        ttdMs: msBetween('$impactStartedAt', '$detectedAt'),
+        ttrMs: msBetween('$detectedAt', '$resolvedAt'),
+        impactMs: msBetween({ $ifNull: ['$impactStartedAt', '$detectedAt'] }, { $ifNull: ['$resolvedAt', '$$NOW'] })
+      } },
+      { $facet: {
+        overall: [{ $group: {
+          _id: null,
+          total: { $sum: 1 },
+          open: { $sum: { $cond: [{ $ne: ['$status', 'resolved'] }, 1, 0] } },
+          resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+          mttdMs: { $avg: '$ttdMs' },
+          mttrMs: { $avg: '$ttrMs' },
+          maxTtrMs: { $max: '$ttrMs' },
+          impactMs: { $sum: '$impactMs' }
+        } }],
+        byType: [
+          { $group: { _id: '$type', count: { $sum: 1 }, mttdMs: { $avg: '$ttdMs' }, mttrMs: { $avg: '$ttrMs' } } },
+          { $sort: { count: -1 } }
+        ],
+        byFarm: [
+          { $group: { _id: '$farm', count: { $sum: 1 }, impactMs: { $sum: '$impactMs' } } },
+          { $lookup: { from: 'farms', localField: '_id', foreignField: '_id', as: 'farm' } },
+          { $project: { _id: 0, farmCode: { $first: '$farm.code' }, farmName: { $first: '$farm.name' }, count: 1, impactMs: 1 } },
+          { $sort: { impactMs: -1 } }
+        ]
+      } }
+    ]);
+
+    const overall = result.overall[0] || { total: 0, open: 0, resolved: 0, mttdMs: null, mttrMs: null, maxTtrMs: null, impactMs: 0 };
+    const toSeconds = (ms) => (ms == null ? null : round(ms / 1000, 1));
+    const impactHours = overall.impactMs / 3_600_000;
+    const baselineImpactHours = overall.total * baselineHours;
+    return {
+      windowHours: hours,
+      since,
+      incidents: { total: overall.total, open: overall.open, resolved: overall.resolved },
+      mttdSeconds: toSeconds(overall.mttdMs),
+      mttrSeconds: toSeconds(overall.mttrMs),
+      maxTtrSeconds: toSeconds(overall.maxTtrMs),
+      unirrigatedMinutes: round(overall.impactMs / 60_000, 1),
+      businessImpact: {
+        assumption: `Without outcome assurance a silent pump failure is noticed at the next field visit (~${baselineHours} h).`,
+        baselineHoursPerIncident: baselineHours,
+        baselineUnirrigatedHours: round(baselineImpactHours, 1),
+        unirrigatedHoursAvoided: round(Math.max(0, baselineImpactHours - impactHours), 1)
+      },
+      byType: result.byType.map((item) => ({
+        type: item._id, count: item.count, mttdSeconds: toSeconds(item.mttdMs), mttrSeconds: toSeconds(item.mttrMs)
+      })),
+      byFarm: result.byFarm.map(({ impactMs, ...item }) => ({ ...item, unirrigatedMinutes: round(impactMs / 60_000, 1) }))
+    };
   }
 
   async getRecoveryProof(incident, command, to = new Date()) {
@@ -475,6 +592,7 @@ class IotMvpService {
     });
     metric('smartfarm.incident.open', 0, 'g', { farm: farm.code });
     metric('smartfarm.irrigation.outcome_missing', 0, 'g', { farm: farm.code });
+    this.recordIncidentResolved(farm, incident);
     logEvent('info', 'incident.resolved', {
       farmCode: farm.code,
       incidentId: incident.incidentId,
@@ -490,7 +608,7 @@ class IotMvpService {
     const farm = await Farm.findOne({ code: farmCode });
     if (!farm) throw new AppError(`Farm ${farmCode} not found`, 404);
     const state = this.states.get(String(farm._id));
-    if (!state) throw new AppError('Simulator is not running for this farm', 409);
+    if (!state) throw this.notSimulatedError(farm);
     if (await Incident.exists({ farm: farm._id, status: { $in: ['open', 'mitigating'] } })) {
       throw new AppError('Resolve the active incident before starting another scenario', 409);
     }
@@ -525,7 +643,7 @@ class IotMvpService {
     const farm = await Farm.findOne({ code: farmCode });
     if (!farm) throw new AppError('Farm not found', 404);
     const state = this.states.get(String(farm._id));
-    if (!state) throw new AppError('Simulator is not running for this farm', 409);
+    if (!state) throw this.notSimulatedError(farm);
     if (await Incident.exists({ farm: farm._id, status: { $in: ['open', 'mitigating'] } })) {
       throw new AppError('Resolve the active incident before starting another scenario', 409);
     }
@@ -573,6 +691,10 @@ class IotMvpService {
     const incident = await Incident.findOne({ incidentId }).populate('farm').populate('command');
     if (!incident) throw new AppError('Incident not found', 404);
     if (incident.status === 'resolved') throw new AppError('Incident is already resolved', 409);
+    if (this.externalStates.has(String(incident.farm._id))) {
+      if (!this.hardwareRetry) throw new AppError('Hardware bridge is not running', 503);
+      return this.hardwareRetry(incident);
+    }
 
     const state = this.states.get(String(incident.farm._id));
     if (!state?.pumpControllerOnline || !state.pumpPowerAvailable) {
@@ -659,11 +781,17 @@ class IotMvpService {
     return { farmCode, scenario: state.scenario };
   }
 
+  notSimulatedError(farm) {
+    return this.externalStates.has(String(farm._id))
+      ? new AppError(`${farm.code} is real hardware: create the fault physically (e.g. lift the pump out of the water)`, 409)
+      : new AppError('Simulator is not running for this farm', 409);
+  }
+
   async getFarmState(farmCode) {
     const farm = await Farm.findOne({ code: farmCode });
     if (!farm) throw new AppError(`Farm ${farmCode} not found`, 404);
     const state = this.states.get(String(farm._id));
-    if (!state) throw new AppError('Simulator is not running for this farm', 409);
+    if (!state) throw this.notSimulatedError(farm);
     return { farm, state };
   }
 
@@ -685,7 +813,7 @@ class IotMvpService {
     const history = this.buildHistory(telemetry);
     const result = farms.map((farm) => {
       const farmId = String(farm._id);
-      const state = this.states.get(farmId);
+      const state = this.states.get(farmId) || this.externalStates.get(farmId);
       const farmSensors = sensors.filter((sensor) => sensor.farm.equals(farm._id));
       const lastCommand = commands.find((command) => command.farm.equals(farm._id));
       const activeIncident = incidents.find(
@@ -699,10 +827,15 @@ class IotMvpService {
         name: farm.name,
         crop: farm.cropType,
         location: displayLocation(farm),
-        temperature: valueFor('temperature'),
-        humidity: valueFor('humidity'),
+        // "humidity" = SOIL moisture (drives irrigation). Air humidity (DHT22) is "airHumidity".
+        temperature: state?.temperature ?? valueFor('temperature'),
+        humidity: state?.soilMoisture ?? valueFor('humidity'),
         ph: valueFor('soil_ph'),
-        online: true,
+        online: state?.online ?? true,
+        source: state?.source || 'simulator',
+        deviceId: state?.deviceId || null,
+        lastSeenAt: state?.lastSeenAt || null,
+        airHumidity: state?.airHumidity ?? null,
         autoMode: farm.pump.mode === 'auto',
         pump: Boolean(state?.pumpPhysical),
         pumpTime: state?.pumpPhysical ? farm.thresholds.pumpRunMinutes * 60 : 0,
@@ -711,7 +844,7 @@ class IotMvpService {
           commandStatus: lastCommand?.status || 'idle',
           acknowledged: Boolean(lastCommand?.acknowledgedAt),
           physical: state?.pumpPhysical ? 'ON' : 'OFF',
-          currentAmp: state?.pumpPhysical ? 1.8 : 0,
+          currentAmp: state?.pumpCurrent ?? 0,
           controllerOnline: state?.pumpControllerOnline ?? false,
           powerAvailable: state?.pumpPowerAvailable ?? false
         },
@@ -927,6 +1060,8 @@ class IotMvpService {
       if (item.meta.sensorType === 'humidity') sample.humidity = item.value;
       if (item.meta.sensorType === 'soil_ph') sample.ph = item.value;
       if (item.meta.sensorType === 'pump_current') sample.pumpCurrent = item.value;
+      if (item.meta.sensorType === 'pump_relay') sample.pumpRelay = item.value;
+      if (item.meta.sensorType === 'air_humidity') sample.airHumidity = item.value;
     }
 
     const history = {};

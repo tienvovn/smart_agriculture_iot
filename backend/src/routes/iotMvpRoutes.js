@@ -14,6 +14,15 @@ router.post('/simulation/ack-timeout', ...farmCodeValidation, iotMvpController.s
 router.post('/simulation/silent-failure', ...farmCodeValidation, iotMvpController.startSilentFailure);
 router.post('/simulation/restore-controller', ...farmCodeValidation, iotMvpController.restoreController);
 router.post('/simulation/reset', ...farmCodeValidation, iotMvpController.resetScenario);
+router.get('/incidents/kpis', iotMvpController.incidentKpis);
+router.get('/hardware', iotMvpController.hardwareStatus);
+router.post(
+  '/hardware/:farmCode/command',
+  param('farmCode').isString().trim().isLength({ min: 1, max: 40 }),
+  body('action').isIn(['ON', 'OFF', 'AUTO', 'MANUAL']),
+  validateRequest,
+  iotMvpController.hardwareCommand
+);
 router.post(
   '/incidents/:incidentId/retry',
   param('incidentId').isString().trim().isLength({ min: 1, max: 80 }),

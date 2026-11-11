@@ -80,7 +80,7 @@ try {
   const resolvedIncident = snapshot.incidents.find((incident) => incident.id === incidentId);
   assert.equal(demoFarm.pumpState.commandStatus, 'effect_confirmed');
   assert.equal(demoFarm.pumpState.acknowledged, true);
-  assert.equal(demoFarm.pumpState.currentAmp, 1.8);
+  assert.ok(demoFarm.pumpState.currentAmp > 1.5, 'Running pump must draw current');
   assert.equal(resolvedIncident.status, 'resolved');
   assert.equal(resolvedIncident.recoveryEvidence.ackReceived, true);
   assert.ok(resolvedIncident.recoveryEvidence.moistureAfter > resolvedIncident.recoveryEvidence.moistureBefore);
@@ -97,13 +97,13 @@ try {
   assert.equal(demoFarm.pumpState.controllerOnline, true);
   assert.equal(demoFarm.pumpState.powerAvailable, false);
   assert.equal(demoFarm.pumpState.acknowledged, true);
-  assert.equal(demoFarm.pumpState.currentAmp, 0);
+  assert.ok(demoFarm.pumpState.currentAmp < 0.1, 'Dead motor stays at the noise floor');
   assert.equal(demoFarm.incident.type, 'pump_no_effect');
   const silentIncidentId = demoFarm.incident.id;
   const silentEvidence = await iotMvpService.getIncidentEvidence(silentIncidentId);
   assert.equal(silentEvidence.recovered, false);
   assert.ok(silentEvidence.command.acknowledgedAt);
-  assert.ok(silentEvidence.timeline.some((reading) => reading.pumpCurrent === 0));
+  assert.ok(silentEvidence.timeline.some((reading) => reading.pumpCurrent < 0.1));
   await assert.rejects(iotMvpService.retryIncident(silentIncidentId), /Restore the controller and pump power/);
 
   await iotMvpService.restorePumpController('FARM-002');
@@ -119,6 +119,13 @@ try {
   assert.ok(repairedEvidence.commands[1].effectConfirmedAt);
   assert.ok(repairedEvidence.recoveryEvidence.pumpCurrentAmp > 0);
   assert.ok(repairedEvidence.recoveryEvidence.moistureAfter > repairedEvidence.recoveryEvidence.moistureBefore);
+  const kpis = await iotMvpService.getIncidentKpis({ hours: 1 });
+  assert.equal(kpis.incidents.total, 2);
+  assert.equal(kpis.incidents.resolved, 2);
+  assert.ok(kpis.mttdSeconds > 0, 'MTTD must be measured from impact start to detection');
+  assert.ok(kpis.mttrSeconds > 0, 'MTTR must be measured from detection to proven recovery');
+  assert.equal(kpis.byType.length, 2);
+  assert.ok(kpis.businessImpact.unirrigatedHoursAvoided > 0);
   const validatorPath = fileURLToPath(new URL('../scripts/validateOperationalData.js', import.meta.url));
   const validation = await execFileAsync(process.execPath, [validatorPath], {
     env: { ...process.env, MONGODB_URI: mongoUri, NODE_ENV: 'test' }

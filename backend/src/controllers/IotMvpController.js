@@ -1,3 +1,4 @@
+import { hardwareBridgeService } from '../services/HardwareBridgeService.js';
 import { iotMvpService } from '../services/IotMvpService.js';
 import { realtimeService } from '../services/RealtimeService.js';
 import { getTelemetryTrend } from '../services/TelemetryTrendService.js';
@@ -41,6 +42,20 @@ export const iotMvpController = {
   retryIncident: asyncHandler(async (req, res) => {
     const data = await iotMvpService.retryIncident(req.params.incidentId);
     return sendSuccess(res, 200, 'Incident mitigation started', data);
+  }),
+
+  hardwareStatus: asyncHandler(async (req, res) => {
+    return sendSuccess(res, 200, 'Hardware devices retrieved', hardwareBridgeService.status());
+  }),
+
+  hardwareCommand: asyncHandler(async (req, res) => {
+    const data = await hardwareBridgeService.sendCommand(req.params.farmCode, req.body.action);
+    return sendSuccess(res, 202, 'Command published to the device', data);
+  }),
+
+  incidentKpis: asyncHandler(async (req, res) => {
+    const hours = Math.min(Math.max(Number(req.query.hours) || 24, 1), 24 * 30);
+    return sendSuccess(res, 200, 'Incident KPIs retrieved', await iotMvpService.getIncidentKpis({ hours }));
   }),
 
   incidentEvidence: asyncHandler(async (req, res) => {

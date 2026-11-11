@@ -1,3 +1,7 @@
+# FarmGuard full stack.
+#   docker compose --env-file backend/.env up -d --build                      # app + MongoDB + MQTT
+#   docker compose --env-file backend/.env --profile observability up -d --build   # + Datadog Agent
+# See docs/DOCKER.md.
 services:
   mongodb:
     image: mongo:7
@@ -13,9 +17,58 @@ services:
       timeout: 3s
       retries: 10
 
+  mqtt:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      # Published on all interfaces so real ESP32 boards on the LAN can connect.
+      # The broker allows anonymous clients: use it only on a trusted LAN.
+      # If the host already runs a broker on 1883, publish this one elsewhere: MQTT_HOST_PORT=1884
+      - "${MQTT_HOST_PORT:-1883}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      # Container addresses override the localhost values used when running with npm.
+      MONGODB_URI: mongodb://mongodb:27017/smart_farm_iot
+      MQTT_URL: ${DOCKER_MQTT_URL:-mqtt://mqtt:1883}
+      # Broker the ESP32 uses. A broker on the Docker host itself: mqtt://host.docker.internal:1883
+      HARDWARE_MQTT_URL: ${DOCKER_HARDWARE_MQTT_URL:-mqtt://mqtt:1883}
+      DD_AGENT_HOST: datadog-agent
+      DD_TRACE_ENABLED: ${DD_APM_ENABLED:-false}
+      DD_LOG_FILE: /app/logs/farmguard.jsonl
+      CORS_ORIGIN: http://localhost:8080
+    # Lets the container reach services on the host (Linux has no host.docker.internal by default).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/logs:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+
+  frontend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
   datadog-agent:
     image: gcr.io/datadoghq/agent:7
     profiles: [observability]
+    restart: unless-stopped
     environment:
       DD_API_KEY: ${DD_API_KEY:-}
       DD_SITE: ${DD_SITE:-datadoghq.com}
@@ -23,20 +76,15 @@ services:
       DD_DOGSTATSD_NON_LOCAL_TRAFFIC: 'true'
       DD_APM_NON_LOCAL_TRAFFIC: 'true'
       DD_HOSTNAME: farmguard-local
+      DD_ENV: ${DD_ENV:-development}
+      DD_TAGS: project:farmguard
+      DD_APM_ENABLED: 'true'
     ports:
       - "8125:8125/udp"
       - "8126:8126/tcp"
     volumes:
       - ./backend/logs:/var/log/farmguard:ro
       - ./datadog/conf.d/farmguard.d:/etc/datadog-agent/conf.d/farmguard.d:ro
-
-  mqtt:
-    image: eclipse-mosquitto:2
-    profiles: [mqtt]
-    ports:
-      - "127.0.0.1:1883:1883"
-    volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
 volumes:
   smart-farm-mongodb-data:

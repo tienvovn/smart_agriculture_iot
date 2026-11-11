@@ -98,6 +98,45 @@ function IncidentCard({ incident, farmName }) {
   </article>;
 }
 
+function formatDuration(seconds) {
+  if (seconds == null) return '--';
+  if (seconds < 90) return Math.round(seconds) + ' s';
+  if (seconds < 5400) return (seconds / 60).toFixed(1) + ' min';
+  return (seconds / 3600).toFixed(1) + ' h';
+}
+
+function KpiStrip() {
+  const [kpis, setKpis] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let mounted = true;
+    const load = () => iotApi.incidentKpis(24)
+      .then((data) => { if (mounted) { setKpis(data); setError(''); } })
+      .catch((requestError) => { if (mounted) setError(requestError.message); });
+    load();
+    const timer = setInterval(load, 5000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, []);
+
+  if (error) return <p className="mb-8 text-sm text-red-300">KPIs unavailable: {error}</p>;
+  if (!kpis) return null;
+  const impact = kpis.businessImpact;
+  return <section className="mb-10">
+    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <h2 className="text-2xl font-bold text-white">Reliability KPIs <span className="text-base font-normal text-slate-400">(last {kpis.windowHours} h)</span></h2>
+      <span className="rounded-full border border-emerald-500/40 px-3 py-1 text-xs font-bold text-emerald-300">MongoDB $dateDiff + $facet</span>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <EvidenceTile label="Incidents" value={kpis.incidents.total + ' (' + kpis.incidents.open + ' open)'} tone={kpis.incidents.open ? 'bad' : 'good'} />
+      <EvidenceTile label="MTTD: fault to detection" value={formatDuration(kpis.mttdSeconds)} />
+      <EvidenceTile label="MTTR: detection to proven recovery" value={formatDuration(kpis.mttrSeconds)} />
+      <EvidenceTile label="Field without water" value={formatDuration(kpis.unirrigatedMinutes * 60)} tone={kpis.incidents.open ? 'bad' : 'slate'} />
+      <EvidenceTile label="Dry hours avoided vs manual check" value={impact.unirrigatedHoursAvoided + ' h'} tone="good" />
+    </div>
+    <p className="mt-2 text-xs text-slate-500">Baseline: {impact.assumption}</p>
+  </section>;
+}
+
 export default function Incidents() {
   const { incidents, farms } = useFarm();
   const active = incidents.filter((incident) => incident.status !== 'resolved');
@@ -109,6 +148,7 @@ export default function Incidents() {
       <h1 className="mt-2 text-4xl font-black text-white">Incident Center</h1>
       <p className="mt-3 max-w-3xl text-slate-400">A command is only successful when the telemetry proves water reached the soil.</p>
     </header>
+    <KpiStrip />
     <section>
       <div className="mb-4 flex items-center justify-between"><h2 className="text-2xl font-bold text-white">Needs attention</h2><span className="rounded-full bg-red-500/15 px-3 py-1 text-sm font-bold text-red-300">{active.length} active</span></div>
       {active.length === 0 ? <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-emerald-200">No active incidents. Run the silent failure demo to reveal a false green ACK.</div> : <div className="grid gap-4">{active.map((incident) => <IncidentCard key={incident.id} incident={incident} farmName={farmName(incident.farmId)} />)}</div>}

@@ -28,6 +28,12 @@ function FarmCard({ farm }) {
             {farm.name}
           </h2>
 
+          {farm.source === "hardware" && (
+            <span className={farm.online ? "mt-2 inline-block rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white" : "mt-2 inline-block rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white"}>
+              LIVE ESP32 {farm.deviceId} · {farm.online ? "ONLINE" : "OFFLINE"}
+            </span>
+          )}
+
           <p className="text-green-400 mt-1">
             🌱 {farm.crop}
           </p>
@@ -59,8 +65,8 @@ function FarmCard({ farm }) {
 
       <div className="mt-5">
 
-        <span className="bg-blue-600 px-3 py-1 rounded-full text-xs text-white">
-          AUTO MODE
+        <span className={`${farm.autoMode === false ? "bg-orange-500" : "bg-blue-600"} px-3 py-1 rounded-full text-xs text-white`}>
+          {farm.autoMode === false ? "MANUAL MODE" : "AUTO MODE"}
         </span>
 
       </div>
@@ -104,37 +110,51 @@ function FarmCard({ farm }) {
 
           <p className="text-slate-400 text-sm">
 
-            Soil Humidity
+            Soil Moisture
 
           </p>
 
           <h3 className="text-2xl text-white font-bold">
 
-            {farm.humidity}%
+            {farm.humidity ?? "--"}%
 
           </h3>
 
         </div>
 
-        {/* PH */}
+        {/* ESP32 has a DHT22 (air humidity) but no pH probe */}
 
-        <div className="bg-slate-900 rounded-xl p-4">
+        {farm.source === "hardware" ? (
+          <div className="bg-slate-900 rounded-xl p-4">
 
-          <FaLeaf className="text-green-400 mb-2" />
+            <FaTint className="text-sky-300 mb-2" />
 
-          <p className="text-slate-400 text-sm">
+            <p className="text-slate-400 text-sm">Air Humidity</p>
 
-            Soil pH
+            <h3 className="text-2xl text-white font-bold">
+              {farm.airHumidity ?? "--"}%
+            </h3>
 
-          </p>
+          </div>
+        ) : (
+          <div className="bg-slate-900 rounded-xl p-4">
 
-          <h3 className="text-2xl text-white font-bold">
+            <FaLeaf className="text-green-400 mb-2" />
 
-            {farm.ph}
+            <p className="text-slate-400 text-sm">
 
-          </h3>
+              Soil pH
 
-        </div>
+            </p>
+
+            <h3 className="text-2xl text-white font-bold">
+
+              {farm.ph}
+
+            </h3>
+
+          </div>
+        )}
 
         {/* Pump */}
 
@@ -178,7 +198,9 @@ function FarmCard({ farm }) {
             <div className="mt-3 space-y-1 text-xs text-slate-400">
               <p>Command: <span className="text-white">{farm.pumpState.commandStatus}</span></p>
               <p>ACK: <span className="text-white">{farm.pumpState.acknowledged ? "YES" : "NO"}</span></p>
-              <p>Current: <span className="text-white">{farm.pumpState.currentAmp} A</span></p>
+              {farm.source === "hardware"
+                ? <p>Relay: <span className="text-white">{farm.pumpState.physical}</span> (no current sensor)</p>
+                : <p>Current: <span className="text-white">{farm.pumpState.currentAmp} A</span></p>}
             </div>
           )}
 

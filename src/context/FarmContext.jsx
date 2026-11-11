@@ -39,9 +39,14 @@ export function FarmProvider({ children }) {
   useEffect(() => {
     const initialRefresh = setTimeout(refresh, 0);
     const source = new EventSource(iotApi.streamUrl);
+    // Throttle, not debounce: resetting the timer on every event starves the
+    // refresh when simulator + ESP32 + incident events arrive back to back.
     const scheduleRefresh = () => {
-      clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(refresh, 150);
+      if (refreshTimer.current) return;
+      refreshTimer.current = setTimeout(() => {
+        refreshTimer.current = null;
+        refresh();
+      }, 150);
     };
     source.addEventListener('connected', () => setConnected(true));
     source.addEventListener('snapshot-invalidated', scheduleRefresh);
@@ -77,8 +82,13 @@ export function FarmProvider({ children }) {
     [farms]
   );
 
-  const unsupportedControl = () => {
-    setError('Manual control is disabled in this MVP. Use the incident workflow in Simulation Center.');
+  // Real ESP32 farms are controlled over MQTT; simulated farms keep the incident workflow.
+  const hardwareControl = (farm, action) => {
+    if (farm?.source !== 'hardware') {
+      setError('Pump control is only available for farms connected to a real ESP32. Use Simulation Center for simulated farms.');
+      return Promise.resolve();
+    }
+    return runAction(() => iotApi.hardwareCommand(farm.code, action));
   };
 
   return (
@@ -90,8 +100,8 @@ export function FarmProvider({ children }) {
       restoreController: (farmCode) => runAction(() => iotApi.restoreController(farmCode)),
       retryIncident: (incidentId) => runAction(() => iotApi.retryIncident(incidentId)),
       resetScenario: (farmCode) => runAction(() => iotApi.resetScenario(farmCode)),
-      toggleMode: unsupportedControl,
-      togglePump: unsupportedControl
+      toggleMode: (farm) => hardwareControl(farm, farm?.autoMode ? 'MANUAL' : 'AUTO'),
+      togglePump: (farm) => hardwareControl(farm, farm?.pump ? 'OFF' : 'ON')
     }}>
       {children}
     </FarmContext.Provider>

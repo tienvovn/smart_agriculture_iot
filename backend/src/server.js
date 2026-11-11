@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import app from './app.js';
 import { connectDatabase } from './config/database.js';
+import { hardwareBridgeService } from './services/HardwareBridgeService.js';
 import { iotMvpService } from './services/IotMvpService.js';
 import { telemetryPipelineService } from './services/TelemetryPipelineService.js';
 
@@ -16,6 +17,7 @@ async function startServer() {
     app.listen(port, async () => {
       console.log(`Smart Farm IoT API running on port ${port}`);
       await iotMvpService.start();
+      await hardwareBridgeService.start();
     });
   } catch (error) {
     console.error('Failed to start server:', error);

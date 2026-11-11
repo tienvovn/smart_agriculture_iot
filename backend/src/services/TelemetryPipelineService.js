@@ -10,6 +10,7 @@ const SENSOR_UNITS = { temperature: 'celsius', humidity: 'percent', soil_ph: 'ph
 const SENSOR_LIMITS = {
   temperature: [0, 60], humidity: [0, 100], soil_ph: [0, 14], pump_current: [0, 30]
 };
+const SENSOR_NOISE_FLOOR = { temperature: 0.3, humidity: 0.5, soil_ph: 0.05, pump_current: 0.1 };
 const MIN_DELTA = { temperature: 2, humidity: 8, soil_ph: 0.5 };
 const EVENT_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -180,12 +181,14 @@ class TelemetryPipelineService {
       const variance = baseline.reduce((sum, item) => sum + (item.value - mean) ** 2, 0) / WINDOW;
       const stdDev = Math.sqrt(variance);
       const delta = Math.abs(latest.value - mean);
-      if (delta < MIN_DELTA[sensorType] || delta < 3 * Math.max(stdDev, 0.01)) continue;
+      // Floor sigma at the sensor's measurement resolution so a flat baseline doesn't yield absurd z-scores.
+      const sigma = Math.max(stdDev, SENSOR_NOISE_FLOOR[sensorType] ?? 0.1);
+      if (delta < MIN_DELTA[sensorType] || delta < 3 * sigma) continue;
       const evidence = {
         farmId: event.farmId, farmCode: event.farmCode, deviceId: latest.meta.deviceId,
         sensorType, messageId: event.messageId, capturedAt: event.capturedAt,
         value: latest.value, baselineMean: mean, baselineStdDev: stdDev,
-        zScore: delta / Math.max(stdDev, 0.01), sampleCount: WINDOW, source: event.source
+        zScore: delta / sigma, sampleCount: WINDOW, source: event.source
       };
       const result = await TelemetryAnomaly.updateOne(
         { farmId: event.farmId, deviceId: latest.meta.deviceId, sensorType, messageId: event.messageId },

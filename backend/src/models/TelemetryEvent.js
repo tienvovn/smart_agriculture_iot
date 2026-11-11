@@ -6,7 +6,7 @@ const telemetryEventSchema = new mongoose.Schema({
   messageId: { type: String, required: true },
   capturedAt: { type: Date, required: true },
   sensorTypes: [{ type: String, required: true }],
-  source: { type: String, enum: ['simulator', 'mqtt'], required: true },
+  source: { type: String, enum: ['simulator', 'mqtt', 'hardware'], required: true },
   ready: { type: Boolean, default: true },
   expiresAt: { type: Date, required: true }
 }, { collection: 'telemetry_events', versionKey: false });

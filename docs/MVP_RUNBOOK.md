@@ -145,23 +145,56 @@ DD_ENV=development
 DD_APM_ENABLED=true
 ```
 
-Set `DD_API_KEY` and `DD_APP_KEY` in your local shell or `backend/.env`. Do not commit
-them. In the repository root, start the Agent with the API key in the shell:
+Also set (never commit them):
+
+```text
+DD_API_KEY=<trial API key>
+DD_APP_KEY=<trial application key>
+DD_ALERT_NOTIFY=@your-email@example.com
+```
+
+`DD_SITE` must match your trial URL (e.g. `us5.datadoghq.com` if the app opens at
+`us5.datadoghq.com`). Start Docker Desktop, then from the repository root start the
+Agent reading the same file:
 
 ```powershell
-docker compose --profile observability up -d datadog-agent
+docker compose --env-file backend/.env --profile observability up -d datadog-agent
+docker compose exec datadog-agent agent status   # check: API key valid, Logs + APM running
 ```
 
 Restart the backend using `npm.cmd run start:apm` from `backend/` to load the
 Datadog tracer before Express and MongoDB. Use `npm.cmd run dev` for local work
 without APM.
 
-From `backend/`, preview and then create or update the dashboard and monitor:
+From `backend/`, preview and then create or update the dashboard and monitors
+(idempotent, safe to rerun):
 
 ```powershell
 npm.cmd run datadog:provision -- --dry-run
 npm.cmd run datadog:provision
 ```
+
+Provisioned monitors (all tagged `project:farmguard`):
+
+| Monitor | Signal | Capability |
+|---|---|---|
+| ACK received but irrigation outcome missing | `smartfarm.irrigation.outcome_missing` > 0.5 by farm | Metrics |
+| Pump command ACK timeout | `smartfarm.command.timeout` count > 0 in 5m | Metrics |
+| Telemetry pipeline stalled | `smartfarm.telemetry.received` < 1 in 5m, alerts on no data | Metrics |
+| Soil moisture anomaly | `anomalies()` on `smartfarm.soil_moisture.percent` | Anomaly Detection |
+| Backend pipeline errors | error logs by `@event` (MQTT, change stream, tick) | Log Management |
+| Simulator tick slow | p95 `trace.farmguard.simulator.tick` > 2s | APM |
+
+The script also creates the SLO *Irrigation commands with proven physical outcome*
+(good = `smartfarm.command.effect_confirmed`, bad = `smartfarm.incident.opened`, 95% / 7d),
+and the backend emits a Datadog Event (`source:farmguard`) when an incident opens or
+resolves, overlaid on the dashboard charts. MTTD/MTTR are exposed both as Datadog
+distributions and by the MongoDB aggregation `GET /api/iot/incidents/kpis?hours=24`.
+
+Each alert message links to the dashboard (pre-filtered by farm) and a Logs Explorer
+query; logs carry `correlationId`/`incidentId` and `dd.trace_id`, so you can pivot
+metric → log → trace. The anomaly monitor needs some history (run the backend for
+~30 minutes before the demo) to learn a band.
 
 Run the silent failure scenario and check that the Datadog dashboard shows
 `smartfarm.irrigation.outcome_missing = 1` for the farm, the monitor alerts, and

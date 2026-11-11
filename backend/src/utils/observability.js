@@ -15,6 +15,8 @@ const tracer = process.env.DD_APM_ENABLED === 'true' ? require('dd-trace') : nul
 const traceFormats = tracer ? require('dd-trace/ext/formats') : null;
 
 socket?.unref();
+// Metrics are best-effort: an unreachable agent (e.g. container not started) must never crash the app.
+socket?.on('error', () => {});
 
 function baseContext() {
   return {
@@ -32,6 +34,8 @@ export function logEvent(level, event, context = {}) {
     ...baseContext(),
     ...context
   };
+  // Datadog lowercases metric tag values (farm:farm-002); mirror that so alert links can filter logs by @farm.
+  if (context.farmCode && !context.farm) payload.farm = String(context.farmCode).toLowerCase();
   const span = tracer?.scope().active();
   if (span) tracer.inject(span.context(), traceFormats.LOG, payload);
 
@@ -57,5 +61,17 @@ export function metric(name, value, type = 'g', tags = {}) {
     .map(([key, tagValue]) => `${key}:${String(tagValue)}`)
     .join(',');
   const message = `${name}:${value}|${type}${tagList ? `|#${tagList}` : ''}`;
+  socket.send(Buffer.from(message), dogstatsdPort, agentHost);
+}
+
+// Datadog Event over DogStatsD: _e{title.length,text.length}:title|text|t:alert_type|#tags
+// Events show up as overlays on dashboards and in the Event Explorer next to monitors.
+export function ddEvent(title, text, alertType = 'info', tags = {}) {
+  if (!socket || !agentHost) return;
+  const escapedText = text.replace(/\n/g, '\\n');
+  const tagList = Object.entries({ env: environment, service, source: 'farmguard', ...tags })
+    .map(([key, tagValue]) => `${key}:${String(tagValue)}`)
+    .join(',');
+  const message = `_e{${title.length},${escapedText.length}}:${title}|${escapedText}|t:${alertType}|s:farmguard|#${tagList}`;
   socket.send(Buffer.from(message), dogstatsdPort, agentHost);
 }

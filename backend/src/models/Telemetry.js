@@ -22,7 +22,7 @@ const telemetrySchema = new mongoose.Schema(
       },
       sensorType: {
         type: String,
-        enum: ['temperature', 'humidity', 'soil_ph', 'pump_current'],
+        enum: ['temperature', 'humidity', 'soil_ph', 'pump_current', 'air_humidity', 'pump_relay'],
         required: true
       }
     },
@@ -32,7 +32,7 @@ const telemetrySchema = new mongoose.Schema(
     },
     unit: {
       type: String,
-      enum: ['celsius', 'percent', 'ph', 'ampere'],
+      enum: ['celsius', 'percent', 'ph', 'ampere', 'state'],
       required: true
     },
     messageId: {
@@ -45,7 +45,7 @@ const telemetrySchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ['simulator', 'mqtt'],
+      enum: ['simulator', 'mqtt', 'hardware'],
       default: 'simulator'
     },
     quality: {
