@@ -162,24 +162,60 @@ Board **không có cảm biến dòng điện**, nên với phần cứng thật
 Chi tiết các thành phần:
 
 ```mermaid
-flowchart LR
-  subgraph Field["Ruộng"]
-    ESP[ESP32-S3<br/>DHT22 · soil · relay]
-    SIM[Simulator<br/>farm mô phỏng]
+flowchart TB
+  subgraph DEV["1 · Thiết bị"]
+    ESP["ESP32-S3 ngoài vườn<br/>DHT22 · cảm biến ẩm đất · relay bơm"]
+    SIM["Simulator<br/>farm mô phỏng, có dòng điện bơm"]
   end
-  ESP -->|MQTT smartgarden/#| MQ[Mosquitto]
-  MQ --> HB[HardwareBridgeService]
-  HB -->|pump/command| MQ
-  SIM --> API[IotMvpService]
+
+  subgraph ING["2 · Thu thập"]
+    MQ["Mosquitto · MQTT<br/>smartgarden/+/telemetry · pump/state"]
+    HB["HardwareBridgeService<br/>chuẩn hóa dữ liệu · lọc tin relay · báo offline"]
+  end
+
+  subgraph CORE["3 · Xử lý · backend Node.js"]
+    PIPE["TelemetryPipelineService<br/>anomaly z-score"]
+    SVC["IotMvpService<br/>vòng đời lệnh và ACK · phát hiện silent failure<br/>incident · KPI MTTD/MTTR"]
+  end
+
+  subgraph DB["4 · MongoDB 7"]
+    TS[("telemetry_ts<br/>⭐ Time Series · TTL 30 ngày")]
+    EV[("telemetry_events<br/>Change Streams")]
+    INC[("incidents · pump_commands")]
+    WARM[("telemetry_daily → telemetry_monthly<br/>rollup bằng $merge")]
+  end
+
+  subgraph OBS["5 · Datadog"]
+    AG["Datadog Agent"]
+    DD["⭐ Dashboard · 7 monitor · SLO<br/>metrics · logs · APM · events"]
+  end
+
+  subgraph APP["6 · API và giao diện"]
+    API["REST API + SSE<br/>/api/iot/*"]
+    UI["React UI<br/>Overview · Telemetry Explorer · Incident Center"]
+  end
+
+  ESP -- "MQTT mỗi 2,5 s" --> MQ
+  MQ --> HB
+  HB -- "lệnh ON/OFF" --> MQ
   HB --> TS
-  API --> TS[("telemetry_ts<br/>⭐ Time Series<br/>TTL 30 ngày")]
-  TS -->|"$merge"| WARM[(telemetry_daily)] -->|"$merge"| COLD[(telemetry_monthly)]
-  COLD -.-> ARC[Archive JSONL + SHA-256]
-  HB & API --> EV[(telemetry_events)] -->|Change Stream| PIPE[Anomaly z-score]
-  HB & API -->|aggregation| INC[(incidents · pump_commands)]
-  API -->|SSE| UI[React · Incident Center]
-  HB & API -. "DogStatsD · logs · APM · events" .-> AG[Datadog Agent] --> DD["⭐ Datadog<br/>dashboard · 7 monitors · SLO"]
+  SIM --> TS
+  HB --> EV
+  SIM --> EV
+  EV -- "Change Stream" --> PIPE
+  TS -- "aggregation" --> SVC
+  SVC --> INC
+  TS -- "$merge" --> WARM
+  SVC -. "metrics · log · trace · event" .-> AG
+  HB -. "metrics · log · trace" .-> AG
+  AG --> DD
+  INC --> API
+  TS --> API
+  WARM --> API
+  API -- "SSE realtime" --> UI
 ```
+
+Bản ảnh PNG của sơ đồ: [docs/assets/diagrams/architecture.png](docs/assets/diagrams/architecture.png)
 
 | Thành phần | Công nghệ |
 |---|---|
