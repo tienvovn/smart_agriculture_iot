@@ -17,8 +17,8 @@ FarmGuard phát hiện lỗi tưới **“im lặng”**: bộ điều khiển b
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/app-incident.png" width="90%" alt="Incident Center: ACK đã nhận nhưng bơm không tưới, kèm KPI MTTD/MTTR"><br>
-  <sub>Incident Center: có ACK nhưng bơm không tưới, kèm KPI MTTD/MTTR tính bằng aggregation MongoDB</sub>
+  <img src="image/app-overview-live-esp32.jpg" width="90%" alt="Trang tổng quan FarmGuard: Green Valley Farm nhận dữ liệu thật từ ESP32 garden01, hai farm còn lại chạy simulator"><br>
+  <sub>Trang tổng quan: <b>Green Valley Farm</b> nhận dữ liệu thật từ ESP32 <code>garden01</code> (nhãn <i>LIVE ESP32 · ONLINE</i>), hai farm còn lại chạy simulator</sub>
 </p>
 
 | | |
@@ -108,7 +108,23 @@ ESP32-S3 đọc cảm biến mỗi **2.5 giây**, tự tưới ở chế độ A
   </tr>
 </table>
 
-Toàn bộ 16 ảnh nằm trong thư mục [image/](image/).
+Toàn bộ ảnh phần cứng và ảnh chụp màn hình nằm trong thư mục [image/](image/).
+
+### Dữ liệu thật từ ESP32
+
+Board `garden01` được gắn với farm **Green Valley Farm** (`HARDWARE_DEVICES=garden01=FARM-001`). Simulator bỏ qua farm này, nên mọi số liệu của nó đều đo từ cảm biến thật.
+
+<p align="center">
+  <img src="image/datadog-esp32-live.png" width="95%" alt="Datadog: 1 thiết bị ESP32 online, lần gửi cuối cách 2,5 giây, biểu đồ độ ẩm đất kèm relay, nhiệt độ và độ ẩm không khí của garden01"><br>
+  <sub>Datadog nhận dữ liệu realtime: <b>1 ESP32 online</b>, lần gửi cuối cách <b>2,5 s</b>, độ ẩm đất kèm trạng thái relay, nhiệt độ và độ ẩm không khí của <code>garden01</code></sub>
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="image/app-farm-detail-esp32.jpg" alt="Chi tiết farm ESP32: nhiệt độ, độ ẩm đất, độ ẩm không khí DHT22, chế độ AUTO, trạng thái relay"><br><sub>Chi tiết farm: số đo DHT22, chế độ AUTO, trạng thái relay</sub></td>
+    <td align="center" width="50%"><img src="image/app-sensor-history.jpg" alt="Lịch sử nhiệt độ, độ ẩm đất và độ ẩm không khí theo từng lần gửi 2,5 giây"><br><sub>Lịch sử cảm biến theo từng lần gửi 2,5 s</sub></td>
+  </tr>
+</table>
 
 ### Sơ đồ đấu dây
 
@@ -206,7 +222,16 @@ Mọi số đo, từ simulator hay từ ESP32, đều được ghi vào **một 
 | **`messageId`, `correlationId`, `source`, `quality`** | Chống ghi trùng, nối số đo với lệnh/incident, phân biệt `simulator` / `mqtt` / `hardware` |
 | **Index phụ `(farmId, sensorType, capturedAt)`** | Phục vụ đúng mẫu truy vấn của bộ phát hiện: “chuỗi X của farm Y, từ thời điểm Z” |
 
-**Số đo thực tế** trên hệ thống demo (05/11/2026, đọc từ `collStats` qua `GET /api/iot/telemetry/storage`): **443.346 số đo** được gom vào **1.292 bucket**, trung bình khoảng **343 số đo mỗi bucket**. Dữ liệu logic 17,46 MiB, dung lượng đã cấp phát trên đĩa 3,05 MiB. Con số cấp phát có tính cả không gian trống, nên không phải tỉ lệ nén chính xác.
+**Số đo thực tế**, đọc từ `collStats` qua `GET /api/iot/telemetry/storage` và hiển thị ngay trong app:
+
+| Thời điểm | Số đo | Bucket | Số đo / bucket | Dữ liệu logic | Đã cấp phát trên đĩa |
+|---|---|---|---|---|---|
+| 12/11/2026 (Docker, có ESP32 thật) | **60.632** | **96** | ≈ **632** | 3,52 MiB | 2,95 MiB |
+| 05/11/2026 (máy dev, chạy simulator lâu) | **443.346** | **1.292** | ≈ **343** | 17,46 MiB | 3,05 MiB |
+
+Hàng trăm số đo của cùng một chuỗi được gom vào một bucket. Dung lượng cấp phát có tính cả không gian trống, nên không phải tỉ lệ nén chính xác.
+
+<p align="center"><img src="image/app-simulation-center.jpg" width="90%" alt="Simulation Center hiển thị số liệu collStats của Time Series: 60.632 số đo, 3,52 MiB dữ liệu logic, 2,95 MiB đã cấp phát, 96 bucket"><br><sub>Simulation Center đọc <code>collStats</code> của <code>telemetry_ts</code>: 60.632 số đo trong 96 bucket</sub></p>
 
 ### 6.2 Vòng đời dữ liệu: nóng → ấm → lạnh → lưu trữ
 
@@ -217,7 +242,9 @@ Mọi số đo, từ simulator hay từ ESP32, đều được ghi vào **một 
 | ❄️ Lạnh | `telemetry_monthly` | Lâu dài | Rollup từ tầng ấm → **`$merge`** |
 | 📦 Lưu trữ | File JSONL (Extended JSON) | Ngoài DB | Kèm manifest **SHA-256** để kiểm chứng |
 
-API xu hướng (`GET /api/iot/telemetry/trend?period=day|month|year`) **tự chọn tầng** phù hợp: dữ liệu trong 30 ngày đọc từ Time Series, xa hơn thì đọc từ tầng ấm hoặc lạnh. Trang `/statistics` dùng API này.
+API xu hướng (`GET /api/iot/telemetry/trend?period=day|month|year`) **tự chọn tầng** phù hợp: dữ liệu trong 30 ngày đọc từ Time Series, xa hơn thì đọc từ tầng ấm hoặc lạnh. Trang **Telemetry Explorer** dùng API này và ghi rõ mỗi điểm lấy từ tầng nào.
+
+<p align="center"><img src="image/app-telemetry-explorer-tiers.jpg" width="90%" alt="Telemetry Explorer: chọn ngày, farm, cảm biến; ba tầng HOT (Time Series 30 ngày), WARM (rollup ngày 400 ngày), COLD (rollup tháng); biểu đồ độ ẩm đất 4.397 số đo, mỗi điểm ghi tầng HOT"><br><sub>Telemetry Explorer: độ ẩm đất của ESP32 trong ngày (4.397 số đo). Mỗi điểm ghi tầng nguồn, ở đây là <b>HOT</b>, tức Time Series</sub></p>
 
 ### 6.3 Aggregation trên Time Series: mỗi pipeline gắn với một bước xử lý sự cố
 
@@ -232,6 +259,8 @@ API xu hướng (`GET /api/iot/telemetry/trend?period=day|month|year`) **tự ch
 ### 6.4 Pipeline realtime với Change Streams
 
 Mỗi lô số đo được ghi thêm một sự kiện vào `telemetry_events`. Collection này được theo dõi bằng **Change Streams**: mỗi lô mới được so với **12 mẫu gần nhất** của cùng thiết bị (z-score), bất thường được lưu vào `telemetry_anomalies` kèm bằng chứng. Cặp `(farmId, messageId)` có unique index nên tin MQTT gửi lặp lại không bị ghi trùng. Nếu MongoDB không chạy replica set, pipeline tự chuyển sang xử lý trực tiếp.
+
+<p align="center"><img src="image/app-anomaly-event-log.jpg" width="80%" alt="Event log: các anomaly độ ẩm của FARM-001, ví dụ 85 so với trung bình trượt 97,58 (3,5 sigma)"><br><sub>Anomaly trên dữ liệu thật của ESP32 (FARM-001): mỗi dòng ghi giá trị đo, trung bình trượt và độ lệch theo σ</sub></p>
 
 ### 6.5 Các collection khác
 
@@ -296,8 +325,18 @@ Dashboard *FarmGuard | Irrigation Outcome Assurance* có 24 widget, chia thành 
 - **Live ESP32 hardware:** số thiết bị online, thời gian từ lần gửi cuối, độ ẩm đất kèm relay, nhiệt độ, độ ẩm không khí, lỗi đọc DHT22;
 - **APM và log:** p95 latency, request/lỗi, log stream có cột `correlationId`.
 
-<p align="center"><img src="docs/assets/screenshots/dd-outcome-missing.png" width="620" alt="Biểu đồ Datadog smartfarm.irrigation.outcome_missing lên 1 trong hai lần silent failure"></p>
-<p align="center"><sub><code>smartfarm.irrigation.outcome_missing</code> lên 1 trong mỗi lần silent failure và về 0 khi phục hồi được chứng minh.</sub></p>
+<p align="center"><img src="image/datadog-incident-flow-monitors.png" width="95%" alt="Dashboard Datadog: ghi chú luồng xử lý sự cố, bảng trạng thái monitor (6 OK, 1 no data), số farm có silent failure bằng 0"><br><sub>Luồng xử lý sự cố, trạng thái các monitor FarmGuard (6 OK), số farm đang có silent failure</sub></p>
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="image/datadog-telemetry-anomaly-band.png" alt="Datadog: 20.032 điểm telemetry trong 5 phút, độ ẩm đất kèm dải anomaly, dòng điện bơm"><br><sub>Lưu lượng telemetry, độ ẩm kèm dải <b>Anomaly Detection</b>, dòng điện bơm</sub></td>
+    <td align="center" width="50%"><img src="image/datadog-sensor-errors-apm.png" alt="Datadog: lỗi đọc DHT22, throughput theo nguồn hardware, anomaly theo cảm biến, APM p95 latency"><br><sub>Lỗi đọc DHT22, throughput theo nguồn, anomaly, <b>APM</b> p95</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="image/datadog-api-requests-logs.png" alt="Datadog: request API qua APM và log stream warn/error có cột event, farm, correlationId"><br><sub>Request API (APM) và <b>log stream</b> có cột <code>@event</code>, <code>@farm</code>, <code>@correlationId</code></sub></td>
+    <td align="center"><img src="docs/assets/screenshots/dd-outcome-missing.png" alt="Biểu đồ Datadog smartfarm.irrigation.outcome_missing lên 1 trong hai lần silent failure"><br><sub><code>outcome_missing</code> lên 1 trong mỗi lần silent failure, về 0 khi phục hồi được chứng minh</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -311,6 +350,8 @@ Dashboard *FarmGuard | Irrigation Outcome Assurance* có 24 widget, chia thành 
 4. **Thả bơm lại vào bể.** Độ ẩm tăng ≥ 3 điểm, incident **tự đóng kèm bằng chứng**, monitor về **OK**.
 
 ### Với simulator: “ACK xanh, mô-tơ chết”
+
+<p align="center"><img src="docs/assets/screenshots/app-incident.png" width="90%" alt="Incident Center: incident pump_no_effect đang mở, ACK đã nhận nhưng dòng điện 0,04 A và độ ẩm giảm từ 46% xuống 20%, kèm KPI MTTD 6 giây, MTTR 2,4 phút"><br><sub>Incident Center trong lúc có sự cố: ACK đã nhận nhưng chỉ 0,04 A, độ ẩm 46% → 20%; KPI MTTD/MTTR tính bằng aggregation</sub></p>
 
 1. Ở `/simulation`, bấm **Inject silent pump failure** cho FARM-002: bộ điều khiển vẫn ACK nhưng mô-tơ mất nguồn.
 2. **6 giây sau:** incident mở, Datadog **Alert**.
@@ -382,7 +423,7 @@ Các test chạy trên `mongodb-memory-server`, không cần MongoDB thật. Lu�
 
 ```
 ├── IOT/SmartAgriculture/        Firmware ESP32-S3 (Arduino C++)
-├── image/                       Ảnh phần cứng thật (16 ảnh)
+├── image/                       Ảnh phần cứng thật, ảnh chụp app và Datadog
 ├── backend/
 │   ├── src/models/              Telemetry (Time Series), Incident, PumpCommand, ...
 │   ├── src/services/            IotMvpService, HardwareBridgeService, TelemetryPipeline/Retention/Trend
